@@ -1,24 +1,52 @@
 """
-InfinityLive - Backend de Licenças v1.1
-Flask + Supabase
+InfinityLive - Backend de Licencas v1.2
+Flask + Supabase REST API (sem biblioteca supabase)
 """
-import os, json, random, string
+import os, json, random, string, requests
 from datetime import datetime, timezone
 from functools import wraps
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# ── Supabase ──────────────────────────────────────────────────────────────────
-SUPABASE_URL  = os.environ.get("SUPABASE_URL", "")
+SUPABASE_URL  = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY  = os.environ.get("SUPABASE_KEY", "")
-ADMIN_TOKEN   = os.environ.get("ADMIN_TOKEN", "TROQUE_ESTE_TOKEN")
+ADMIN_TOKEN   = os.environ.get("ADMIN_TOKEN", "TROQUE")
 
-def get_sb():
-    from supabase import create_client
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+def sb_headers():
+    return {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+def sb_get(tabela, filtros=None):
+    url = SUPABASE_URL + "/rest/v1/" + tabela
+    params = filtros or {}
+    params["select"] = "*"
+    r = requests.get(url, headers=sb_headers(), params=params, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+def sb_post(tabela, dados):
+    url = SUPABASE_URL + "/rest/v1/" + tabela
+    r = requests.post(url, headers=sb_headers(), json=dados, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+def sb_patch(tabela, filtros, dados):
+    url = SUPABASE_URL + "/rest/v1/" + tabela
+    r = requests.patch(url, headers=sb_headers(), params=filtros, json=dados, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+def sb_delete(tabela, filtros):
+    url = SUPABASE_URL + "/rest/v1/" + tabela
+    r = requests.delete(url, headers=sb_headers(), params=filtros, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
 def agora():
     return datetime.now(timezone.utc).isoformat()
 
@@ -27,41 +55,38 @@ def gerar_chave():
     bloco = ''.join(random.choices(chars, k=4))
     return "IL-" + bloco
 
-def cors(response):
-    response.headers["Access-Control-Allow-Origin"]  = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Token"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, DELETE"
-    return response
-
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = request.headers.get("X-Admin-Token", "")
         if token != ADMIN_TOKEN:
-            return jsonify({"ok": False, "msg": "Não autorizado."}), 401
+            return jsonify({"ok": False, "msg": "Nao autorizado."}), 401
         return f(*args, **kwargs)
     return decorated
 
 @app.after_request
 def after(response):
-    return cors(response)
+    response.headers["Access-Control-Allow-Origin"]  = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Token"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, DELETE"
+    return response
 
 @app.route("/", methods=["OPTIONS"])
 @app.route("/<path:path>", methods=["OPTIONS"])
 def options(path=""):
     return jsonify({"ok": True})
 
-@app.route("/", methods=["GET"])
+@app.route("/")
 def index():
-    return jsonify({"ok": True, "msg": "InfinityLive Licenças v1.1"})
+    return jsonify({"ok": True, "msg": "InfinityLive Licencas v1.2"})
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ROTAS PÚBLICAS
+#  ROTAS PUBLICAS
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/ativar", methods=["POST"])
 def ativar():
-    body = request.get_json(silent=True) or {}
+    body        = request.get_json(silent=True) or {}
     chave       = (body.get("chave") or "").strip().upper()
     device_uuid = (body.get("device_uuid") or "").strip()
     device_nome = (body.get("device_nome") or "Desconhecido").strip()[:60]
@@ -69,12 +94,15 @@ def ativar():
     if not chave or not device_uuid:
         return jsonify({"ok": False, "msg": "Dados incompletos."})
 
-    sb = get_sb()
-    res = sb.table("licencas").select("*").eq("chave", chave).execute()
-    if not res.data:
-        return jsonify({"ok": False, "msg": "Chave não encontrada."})
+    try:
+        lics = sb_get("licencas", {"chave": "eq." + chave})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": "Erro ao consultar banco: " + str(e)})
 
-    lic = res.data[0]
+    if not lics:
+        return jsonify({"ok": False, "msg": "Chave nao encontrada."})
+
+    lic = lics[0]
 
     if not lic["ativa"]:
         return jsonify({"ok": False, "msg": "Chave inativa ou revogada."})
@@ -84,47 +112,61 @@ def ativar():
         if datetime.now(timezone.utc) > expira:
             return jsonify({"ok": False, "msg": "Chave expirada."})
 
-    devs_res = sb.table("licenca_devices").select("*").eq("licenca_id", lic["id"]).execute()
-    devices  = devs_res.data or []
+    try:
+        devices = sb_get("licenca_devices", {"licenca_id": "eq." + lic["id"]})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": "Erro ao consultar devices: " + str(e)})
 
     device_existente = next((d for d in devices if d["device_uuid"] == device_uuid), None)
     if device_existente:
-        sb.table("licenca_devices").update({"ultimo_acesso": agora()}).eq("id", device_existente["id"]).execute()
-        return jsonify({"ok": True, "msg": "Dispositivo já autorizado."})
+        try:
+            sb_patch("licenca_devices", {"id": "eq." + device_existente["id"]}, {"ultimo_acesso": agora()})
+        except:
+            pass
+        return jsonify({"ok": True, "msg": "Dispositivo ja autorizado."})
 
     max_dev = lic.get("max_devices", 1)
     if len(devices) >= max_dev:
-        return jsonify({"ok": False, "msg": f"Limite de dispositivos atingido ({max_dev}/{max_dev}). Contate a Mariana."})
+        return jsonify({"ok": False, "msg": "Limite de dispositivos atingido (" + str(max_dev) + "/" + str(max_dev) + "). Contate a Mariana."})
 
-    sb.table("licenca_devices").insert({
-        "licenca_id":    lic["id"],
-        "device_uuid":   device_uuid,
-        "device_nome":   device_nome,
-        "ativado_em":    agora(),
-        "ultimo_acesso": agora()
-    }).execute()
+    try:
+        sb_post("licenca_devices", {
+            "licenca_id":    lic["id"],
+            "device_uuid":   device_uuid,
+            "device_nome":   device_nome,
+            "ativado_em":    agora(),
+            "ultimo_acesso": agora()
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "msg": "Erro ao registrar device: " + str(e)})
 
     if not lic.get("ativada_em"):
-        sb.table("licencas").update({"ativada_em": agora()}).eq("id", lic["id"]).execute()
+        try:
+            sb_patch("licencas", {"id": "eq." + lic["id"]}, {"ativada_em": agora()})
+        except:
+            pass
 
     return jsonify({"ok": True, "msg": "Dispositivo autorizado com sucesso!"})
 
 
 @app.route("/validar", methods=["POST"])
 def validar():
-    body = request.get_json(silent=True) or {}
+    body        = request.get_json(silent=True) or {}
     chave       = (body.get("chave") or "").strip().upper()
     device_uuid = (body.get("device_uuid") or "").strip()
 
     if not chave or not device_uuid:
         return jsonify({"ok": False, "msg": "Dados incompletos."})
 
-    sb  = get_sb()
-    res = sb.table("licencas").select("*").eq("chave", chave).execute()
-    if not res.data:
-        return jsonify({"ok": False, "msg": "Chave não encontrada."})
+    try:
+        lics = sb_get("licencas", {"chave": "eq." + chave})
+    except Exception as e:
+        return jsonify({"ok": True, "msg": "Offline - acesso mantido."})
 
-    lic = res.data[0]
+    if not lics:
+        return jsonify({"ok": False, "msg": "Chave nao encontrada."})
+
+    lic = lics[0]
 
     if not lic["ativa"]:
         return jsonify({"ok": False, "msg": "Chave revogada."})
@@ -134,12 +176,20 @@ def validar():
         if datetime.now(timezone.utc) > expira:
             return jsonify({"ok": False, "msg": "Chave expirada."})
 
-    devs_res = sb.table("licenca_devices").select("*").eq("licenca_id", lic["id"]).eq("device_uuid", device_uuid).execute()
-    if not devs_res.data:
-        return jsonify({"ok": False, "msg": "Dispositivo não autorizado para esta chave."})
+    try:
+        devs = sb_get("licenca_devices", {"licenca_id": "eq." + lic["id"], "device_uuid": "eq." + device_uuid})
+    except:
+        return jsonify({"ok": True, "msg": "Offline - acesso mantido."})
 
-    sb.table("licenca_devices").update({"ultimo_acesso": agora()}).eq("id", devs_res.data[0]["id"]).execute()
-    return jsonify({"ok": True, "msg": "Acesso válido."})
+    if not devs:
+        return jsonify({"ok": False, "msg": "Dispositivo nao autorizado."})
+
+    try:
+        sb_patch("licenca_devices", {"id": "eq." + devs[0]["id"]}, {"ultimo_acesso": agora()})
+    except:
+        pass
+
+    return jsonify({"ok": True, "msg": "Acesso valido."})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -149,14 +199,15 @@ def validar():
 @app.route("/admin/chaves", methods=["GET"])
 @admin_required
 def admin_listar_chaves():
-    sb  = get_sb()
-    res = sb.table("licencas").select("*").order("criada_em", desc=True).execute()
-    chaves = res.data or []
-    for c in chaves:
-        devs = sb.table("licenca_devices").select("*").eq("licenca_id", c["id"]).order("ativado_em").execute()
-        c["devices"]     = devs.data or []
-        c["slots_usados"] = len(c["devices"])
-    return jsonify({"ok": True, "chaves": chaves})
+    try:
+        chaves = sb_get("licencas", {"order": "criada_em.desc"})
+        for c in chaves:
+            devs = sb_get("licenca_devices", {"licenca_id": "eq." + c["id"], "order": "ativado_em.asc"})
+            c["devices"]      = devs
+            c["slots_usados"] = len(devs)
+        return jsonify({"ok": True, "chaves": chaves})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": "Erro: " + str(e)})
 
 
 @app.route("/admin/gerar", methods=["POST"])
@@ -169,20 +220,22 @@ def admin_gerar():
     quantidade  = min(int(body.get("quantidade", 1)), 50)
     observacao  = (body.get("observacao") or "")[:200]
 
-    sb = get_sb()
     geradas = []
     for _ in range(quantidade):
         chave = gerar_chave()
-        sb.table("licencas").insert({
-            "chave":       chave,
-            "tipo":        tipo,
-            "max_devices": max_devices,
-            "ativa":       True,
-            "expira_em":   expira_em,
-            "criada_em":   agora(),
-            "observacao":  observacao,
-        }).execute()
-        geradas.append(chave)
+        try:
+            sb_post("licencas", {
+                "chave":       chave,
+                "tipo":        tipo,
+                "max_devices": max_devices,
+                "ativa":       True,
+                "expira_em":   expira_em,
+                "criada_em":   agora(),
+                "observacao":  observacao,
+            })
+            geradas.append(chave)
+        except Exception as e:
+            return jsonify({"ok": False, "msg": "Erro ao gerar: " + str(e)})
 
     return jsonify({"ok": True, "chaves": geradas})
 
@@ -190,29 +243,41 @@ def admin_gerar():
 @app.route("/admin/revogar/<chave_id>", methods=["POST"])
 @admin_required
 def admin_revogar(chave_id):
-    get_sb().table("licencas").update({"ativa": False}).eq("id", chave_id).execute()
-    return jsonify({"ok": True, "msg": "Chave revogada."})
+    try:
+        sb_patch("licencas", {"id": "eq." + chave_id}, {"ativa": False})
+        return jsonify({"ok": True, "msg": "Chave revogada."})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
 
 
 @app.route("/admin/reativar/<chave_id>", methods=["POST"])
 @admin_required
 def admin_reativar(chave_id):
-    get_sb().table("licencas").update({"ativa": True}).eq("id", chave_id).execute()
-    return jsonify({"ok": True, "msg": "Chave reativada."})
+    try:
+        sb_patch("licencas", {"id": "eq." + chave_id}, {"ativa": True})
+        return jsonify({"ok": True, "msg": "Chave reativada."})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
 
 
 @app.route("/admin/resetar_devices/<chave_id>", methods=["POST"])
 @admin_required
 def admin_resetar_devices(chave_id):
-    get_sb().table("licenca_devices").delete().eq("licenca_id", chave_id).execute()
-    return jsonify({"ok": True, "msg": "Devices resetados. Slots liberados."})
+    try:
+        sb_delete("licenca_devices", {"licenca_id": "eq." + chave_id})
+        return jsonify({"ok": True, "msg": "Devices resetados."})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
 
 
 @app.route("/admin/remover_device/<device_id>", methods=["DELETE"])
 @admin_required
 def admin_remover_device(device_id):
-    get_sb().table("licenca_devices").delete().eq("id", device_id).execute()
-    return jsonify({"ok": True, "msg": "Device removido."})
+    try:
+        sb_delete("licenca_devices", {"id": "eq." + device_id})
+        return jsonify({"ok": True, "msg": "Device removido."})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
 
 
 @app.route("/admin/atualizar/<chave_id>", methods=["POST"])
@@ -224,19 +289,14 @@ def admin_atualizar(chave_id):
     if "expira_em"   in body: update["expira_em"]   = body["expira_em"]
     if "observacao"  in body: update["observacao"]  = body["observacao"][:200]
     if update:
-        get_sb().table("licencas").update(update).eq("id", chave_id).execute()
+        try:
+            sb_patch("licencas", {"id": "eq." + chave_id}, update)
+        except Exception as e:
+            return jsonify({"ok": False, "msg": str(e)})
     return jsonify({"ok": True, "msg": "Chave atualizada."})
 
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  PAINEL ADMIN WEB
-# ══════════════════════════════════════════════════════════════════════════════
-
+# ── PAINEL ADMIN ──────────────────────────────────────────────────────────────
 import pathlib
 
 @app.route("/admin")
