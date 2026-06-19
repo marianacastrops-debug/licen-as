@@ -281,6 +281,17 @@ function copiar(ch){navigator.clipboard.writeText(ch).then(function(){toast('Cha
 function gerarChave(){var c='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',r='';for(var i=0;i<4;i++)r+=c[Math.floor(Math.random()*c.length)];return 'IL-'+r;}
 
 document.getElementById('btn-gerar').addEventListener('click',function(){document.getElementById('modal-gerar').classList.add('show');});
+document.getElementById('g-tipo').addEventListener('change', function(){
+  var tipo = this.value;
+  var dias = tipo === 'mensal' ? 30 : tipo === 'mentoria' ? 360 : 0;
+  var expiraInput = document.getElementById('g-expira');
+  if (dias > 0) {
+    var d = new Date(); d.setDate(d.getDate() + dias);
+    expiraInput.value = d.toISOString().slice(0,10);
+  } else {
+    expiraInput.value = '';
+  }
+});
 document.getElementById('btn-cancelar-gerar').addEventListener('click',function(){document.getElementById('modal-gerar').classList.remove('show');});
 document.getElementById('btn-confirmar-gerar').addEventListener('click',function(){
   var tipo=document.getElementById('g-tipo').value;
@@ -288,6 +299,10 @@ document.getElementById('btn-confirmar-gerar').addEventListener('click',function
   var expira=document.getElementById('g-expira').value;
   var qtd=Math.min(parseInt(document.getElementById('g-qtd').value)||1,50);
   var obs=document.getElementById('g-obs').value.trim();
+  if (!expira) {
+    var dias = tipo==='mensal' ? 30 : tipo==='mentoria' ? 360 : 0;
+    if (dias > 0) { var dd=new Date(); dd.setDate(dd.getDate()+dias); expira=dd.toISOString().slice(0,10); }
+  }
   var geradas=[],pendentes=qtd;
   for(var i=0;i<qtd;i++){(function(){
     var ch=gerarChave();
