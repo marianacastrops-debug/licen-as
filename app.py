@@ -24,8 +24,8 @@ def agora():
 
 def gerar_chave():
     chars = string.ascii_uppercase + string.digits
-    blocos = [''.join(random.choices(chars, k=4)) for _ in range(3)]
-    return "INFT-" + "-".join(blocos)
+    bloco = ''.join(random.choices(chars, k=4))
+    return "IL-" + bloco
 
 def cors(response):
     response.headers["Access-Control-Allow-Origin"]  = "*"
