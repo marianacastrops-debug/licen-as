@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>InfinityLive · Admin</title>
+<style>
+:root{--bg:#060C18;--surface:#0D1526;--card:#111927;--border:#1E2D45;--red:#E8000F;--green:#00E676;--yellow:#FFD600;--blue:#00C8FF;--text:#EEF0F6;--muted:#6B7A90;--danger:#FF3355}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:13px;min-height:100vh}
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px 32px;width:100%;max-width:360px;text-align:center}
+.login-logo{width:52px;height:52px;background:var(--red);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;margin:0 auto 16px}
+.login-title{font-size:20px;font-weight:800;margin-bottom:4px}
+.login-sub{color:var(--muted);font-size:12px;margin-bottom:28px}
+.login-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 16px;font-size:13px;outline:none;margin-bottom:12px;font-family:inherit}
+.login-input:focus{border-color:var(--red)}
+.login-btn{width:100%;background:var(--red);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer}
+.login-btn:hover{opacity:.88}
+.login-btn:disabled{opacity:.5;cursor:not-allowed}
+.login-err{font-size:12px;margin-top:10px;min-height:18px;color:var(--muted)}
+#app-screen{display:none}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff}
+.logo-txt{font-size:16px;font-weight:800}
+.logo-txt span{color:var(--red)}
+.btn-sair{background:var(--border);color:var(--muted);border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.main{padding:24px;max-width:1200px;margin:0 auto}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-value{font-size:28px;font-weight:800;margin-top:6px}
+.stat-value.green{color:var(--green)}.stat-value.red{color:var(--danger)}.stat-value.blue{color:var(--blue)}.stat-value.yellow{color:var(--yellow)}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.toolbar-title{font-size:15px;font-weight:700;flex:1}
+.btn{padding:8px 16px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-primary{background:var(--red);color:#fff}.btn-success{background:var(--green);color:#000}
+.btn-warning{background:var(--yellow);color:#000}.btn-danger{background:var(--danger);color:#fff}
+.btn-ghost{background:var(--border);color:var(--text)}.btn-sm{padding:5px 10px;font-size:11px}
+.filter-input,.filter-select{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 14px;font-size:12px;outline:none}
+.filter-input{width:220px}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--surface);padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,0.025)}
+tbody td{padding:12px 16px;vertical-align:middle}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-ativa{background:rgba(0,230,118,.15);color:var(--green)}.badge-inativa{background:rgba(255,51,85,.15);color:var(--danger)}
+.badge-expirada{background:rgba(255,214,0,.15);color:var(--yellow)}.badge-mensal{background:rgba(0,200,255,.12);color:var(--blue)}
+.badge-mentoria{background:rgba(232,0,15,.12);color:#ff6b6b}.badge-vitalicio{background:rgba(0,230,118,.12);color:var(--green)}
+.chave-txt{font-family:monospace;font-size:14px;font-weight:700;letter-spacing:2px;color:var(--blue)}
+.slots-bar{display:flex;align-items:center;gap:8px}
+.slots-dots{display:flex;gap:4px}
+.slot-dot{width:10px;height:10px;border-radius:50%;background:var(--border)}
+.slot-dot.usado{background:var(--green)}.slot-dot.cheio{background:var(--danger)}
+.slots-txt{font-size:11px;color:var(--muted);white-space:nowrap}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.devices-wrap{background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.device-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px}
+.device-item:last-child{border-bottom:none}
+.device-icon{width:28px;height:28px;background:rgba(0,200,255,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.device-info{flex:1;min-width:0}
+.device-nome{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.device-uuid{font-family:monospace;font-size:10px;color:var(--muted);margin-top:1px}
+.device-acesso{font-size:10px;color:var(--muted);white-space:nowrap}
+.row-detail{background:rgba(0,0,0,.3)!important}
+.row-detail td{padding:0 16px 14px!important}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(4,7,16,0.85);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:420px;max-width:95vw}
+.modal-title{font-size:15px;font-weight:800;margin-bottom:20px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;display:block}
+.form-input,.form-select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-size:13px;outline:none;font-family:inherit}
+.form-input:focus,.form-select:focus{border-color:var(--red)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;margin-top:22px;justify-content:flex-end}
+#toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:600;display:none;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#toast.show{display:flex}
+#toast.ok{border-color:rgba(0,230,118,.4);color:var(--green)}
+#toast.err{border-color:rgba(255,51,85,.4);color:var(--danger)}
+.loading,.empty{color:var(--muted);text-align:center;padding:40px;font-size:13px}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">&#8734;</div>
+    <div class="login-title">Infinity Live</div>
+    <div class="login-sub">Painel de Administracao</div>
+    <input class="login-input" id="login-token" type="password" placeholder="Token de acesso">
+    <button class="login-btn" id="login-btn">Entrar</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">&#8734;</div>
+      <div class="logo-txt">Infinity<span>Live</span> &middot; Admin</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="btn btn-ghost btn-sm" id="btn-atualizar">&#8635; Atualizar</button>
+      <button class="btn-sair" id="btn-sair">Sair</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="s-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Ativas</div><div class="stat-value green" id="s-ativas">0</div></div>
+      <div class="stat-card"><div class="stat-label">Revogadas</div><div class="stat-value red" id="s-inativas">0</div></div>
+      <div class="stat-card"><div class="stat-label">Expiradas</div><div class="stat-value yellow" id="s-expiradas">0</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-title">Chaves de licenca</div>
+      <input class="filter-input" id="filtro-busca" placeholder="Buscar chave, cliente...">
+      <select class="filter-select" id="filtro-tipo">
+        <option value="">Todos os tipos</option>
+        <option value="mensal">Mensal</option>
+        <option value="mentoria">Mentoria</option>
+        <option value="vitalicio">Vitalicio</option>
+      </select>
+      <select class="filter-select" id="filtro-status">
+        <option value="">Todos os status</option>
+        <option value="ativa">Ativas</option>
+        <option value="inativa">Inativas</option>
+        <option value="expirada">Expiradas</option>
+      </select>
+      <button class="btn btn-primary" id="btn-gerar">+ Gerar chave</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Chave</th><th>Cliente</th><th>Tipo</th><th>Status</th>
+            <th>Devices</th><th>Expira em</th><th>Ultimo acesso</th><th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-body">
+          <tr><td colspan="8" class="loading">Faca login para carregar.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-gerar">
+  <div class="modal">
+    <div class="modal-title">+ Gerar nova(s) chave(s)</div>
+    <div class="form-group"><label class="form-label">Cliente / Observacao</label><input class="form-input" id="g-obs" placeholder="Ex: Joao Silva"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-select" id="g-tipo">
+          <option value="mensal">Mensal</option>
+          <option value="mentoria">Mentoria</option>
+          <option value="vitalicio">Vitalicio</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-input" id="g-maxdev" type="number" value="1" min="1" max="10"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Expira em (vazio = sem expiracao)</label><input class="form-input" id="g-expira" type="date"></div>
+      <div class="form-group"><label class="form-label">Quantidade</label><input class="form-input" id="g-qtd" type="number" value="1" min="1" max="50"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-cancelar-gerar">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-gerar">Gerar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal">
+    <div class="modal-title">Editar chave</div>
+    <input type="hidden" id="e-id">
+    <div class="form-group"><label class="form-label">Cliente / Observacao</label><input class="form-input" id="e-obs"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-input" id="e-maxdev" type="number" min="1" max="10"></div>
+      <div class="form-group"><label class="form-label">Nova expiracao</label><input class="form-input" id="e-expira" type="date"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-cancelar-editar">Cancelar</button>
+      <button class="btn btn-success" id="btn-confirmar-editar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+var SERVIDOR = 'https://infinitylive-licencas.onrender.com';
+var todasChaves = [];
+var expandidoId = null;
+var adminToken  = '';
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+document.getElementById('login-btn').addEventListener('click', fazerLogin);
+document.getElementById('login-token').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') fazerLogin();
+});
+
+function fazerLogin() {
+  var t = document.getElementById('login-token').value.trim();
+  if (!t) { mostrarErro('Digite o token.'); return; }
+  var btn = document.getElementById('login-btn');
+  var err = document.getElementById('login-err');
+  btn.disabled = true;
+  btn.textContent = 'Conectando...';
+  err.style.color = 'var(--muted)';
+  err.textContent = 'Aguardando servidor...';
+  var dots = 0;
+  var timer = setInterval(function() {
+    dots = (dots + 1) % 4;
+    err.textContent = 'Aguardando servidor' + '.'.repeat(dots + 1);
+  }, 600);
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 120000);
+  fetch(SERVIDOR + '/admin/chaves', {
+    headers: { 'X-Admin-Token': t },
+    signal: controller.signal
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    clearTimeout(timeoutId);
+    clearInterval(timer);
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+    if (!res.ok) { err.style.color = 'var(--danger)'; err.textContent = 'Token invalido.'; return; }
+    adminToken = t;
+    sessionStorage.setItem('il_token', t);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    todasChaves = res.chaves || [];
+    atualizarStats();
+    filtrar();
+  })
+  .catch(function(e) {
+    clearTimeout(timeoutId);
+    clearInterval(timer);
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+    err.style.color = 'var(--danger)';
+    if (e.name === 'AbortError') {
+      err.textContent = 'Servidor demorou demais. Tente novamente.';
+    } else {
+      err.textContent = 'Erro de conexao. Verifique o servidor no Render.';
+    }
+  });
+}
+
+function mostrarErro(msg) {
+  var err = document.getElementById('login-err');
+  err.style.color = 'var(--danger)';
+  err.textContent = msg;
+}
+
+// ── SAIR ──────────────────────────────────────────────────────────────────────
+document.getElementById('btn-sair').addEventListener('click', function() {
+  sessionStorage.removeItem('il_token');
+  adminToken = '';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-token').value = '';
+  document.getElementById('login-err').textContent = '';
+});
+
+// ── API ───────────────────────────────────────────────────────────────────────
+function api(path, method, body) {
+  method = method || 'GET';
+  var opts = { method: method, headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken } };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(SERVIDOR + path, opts).then(function(r) { return r.json(); });
+}
+
+// ── CARREGAR ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-atualizar').addEventListener('click', carregar);
+
+function carregar() {
+  document.getElementById('tabela-body').innerHTML = '<tr><td colspan="8" class="loading">Carregando...</td></tr>';
+  api('/admin/chaves').then(function(res) {
+    if (!res.ok) { toast('Erro ao carregar.', 'err'); return; }
+    todasChaves = res.chaves || [];
+    atualizarStats();
+    filtrar();
+  }).catch(function() { toast('Erro de conexao.', 'err'); });
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function atualizarStats() {
+  var agora = new Date();
+  var ativas = 0, inativas = 0, expiradas = 0;
+  todasChaves.forEach(function(c) {
+    if (!c.ativa) { inativas++; return; }
+    if (c.expira_em && new Date(c.expira_em) < agora) { expiradas++; return; }
+    ativas++;
+  });
+  document.getElementById('s-total').textContent    = todasChaves.length;
+  document.getElementById('s-ativas').textContent   = ativas;
+  document.getElementById('s-inativas').textContent = inativas;
+  document.getElementById('s-expiradas').textContent = expiradas;
+}
+
+// ── FILTRAR ───────────────────────────────────────────────────────────────────
+document.getElementById('filtro-busca').addEventListener('input', filtrar);
+document.getElementById('filtro-tipo').addEventListener('change', filtrar);
+document.getElementById('filtro-status').addEventListener('change', filtrar);
+
+function filtrar() {
+  var busca  = document.getElementById('filtro-busca').value.toLowerCase();
+  var tipo   = document.getElementById('filtro-tipo').value;
+  var status = document.getElementById('filtro-status').value;
+  var agora  = new Date();
+  var filtradas = todasChaves.filter(function(c) {
+    if (busca && !c.chave.toLowerCase().includes(busca) && !(c.observacao||'').toLowerCase().includes(busca)) return false;
+    if (tipo && c.tipo !== tipo) return false;
+    if (status === 'ativa')    { if (!c.ativa || (c.expira_em && new Date(c.expira_em) < agora)) return false; }
+    if (status === 'inativa')  { if (c.ativa) return false; }
+    if (status === 'expirada') { if (!c.expira_em || new Date(c.expira_em) >= agora) return false; }
+    return true;
+  });
+  renderTabela(filtradas);
+}
+
+// ── TABELA ────────────────────────────────────────────────────────────────────
+function renderTabela(chaves) {
+  var tbody = document.getElementById('tabela-body');
+  if (!chaves.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhuma chave encontrada.</td></tr>'; return; }
+  var agora = new Date();
+  tbody.innerHTML = '';
+  chaves.forEach(function(c) {
+    var statusClass, statusLabel;
+    if (!c.ativa) { statusClass = 'badge-inativa'; statusLabel = 'Revogada'; }
+    else if (c.expira_em && new Date(c.expira_em) < agora) { statusClass = 'badge-expirada'; statusLabel = 'Expirada'; }
+    else { statusClass = 'badge-ativa'; statusLabel = 'Ativa'; }
+    var tipoLabel = {mensal:'Mensal', mentoria:'Mentoria', vitalicio:'Vitalicio'}[c.tipo] || c.tipo;
+    var max = c.max_devices || 1;
+    var usados = c.slots_usados || 0;
+    var dots = '';
+    for (var i = 0; i < max; i++) {
+      dots += '<div class="slot-dot' + (i < usados ? (usados >= max ? ' cheio' : ' usado') : '') + '"></div>';
+    }
+    var expiraFmt = c.expira_em ? new Date(c.expira_em).toLocaleDateString('pt-BR') : '—';
+    var ultimoAcesso = ultimoAcessoGeral(c.devices);
+    var tr = document.createElement('tr');
+    tr.dataset.id = c.id;
+    tr.innerHTML =
+      '<td><div class="chave-txt">' + esc(c.chave) + '</div><div style="font-size:10px;color:var(--muted);font-family:monospace">' + c.id.slice(0,8) + '...</div></td>' +
+      '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (c.observacao ? esc(c.observacao) : '<span style="color:var(--muted);font-style:italic">sem descricao</span>') + '</td>' +
+      '<td><span class="badge badge-' + (c.tipo||'mensal') + '">' + tipoLabel + '</span></td>' +
+      '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+      '<td><div class="slots-bar"><div class="slots-dots">' + dots + '</div><div class="slots-txt">' + usados + '/' + max + '</div></div>' +
+        '<div style="font-size:10px;color:var(--muted);margin-top:3px">' + c.devices.length + ' dispositivo' + (c.devices.length !== 1 ? 's' : '') +
+        ' <span class="ver-devices" data-id="' + c.id + '" style="cursor:pointer;color:var(--blue);margin-left:4px">' + (expandidoId === c.id ? '&#9650; ocultar' : '&#9660; ver') + '</span></div></td>' +
+      '<td>' + expiraFmt + '</td>' +
+      '<td style="color:var(--muted);font-size:11px">' + ultimoAcesso + '</td>' +
+      '<td><div class="actions">' +
+        '<button class="btn btn-ghost btn-sm btn-editar" data-id="' + c.id + '">&#9998;</button>' +
+        (c.ativa
+          ? '<button class="btn btn-danger btn-sm btn-revogar" data-id="' + c.id + '">Revogar</button>'
+          : '<button class="btn btn-success btn-sm btn-reativar" data-id="' + c.id + '">Reativar</button>') +
+        '<button class="btn btn-warning btn-sm btn-reset" data-id="' + c.id + '" data-chave="' + esc(c.chave) + '">&#8635; Reset</button>' +
+        '<button class="btn btn-ghost btn-sm btn-copiar" data-chave="' + esc(c.chave) + '">&#128203;</button>' +
+      '</div></td>';
+    tbody.appendChild(tr);
+    var trDev = document.createElement('tr');
+    trDev.className = 'row-detail';
+    trDev.dataset.devid = c.id;
+    trDev.style.display = expandidoId === c.id ? '' : 'none';
+    trDev.innerHTML = '<td colspan="8">' + renderDevices(c.devices, c.id) + '</td>';
+    tbody.appendChild(trDev);
+  });
+  // Eventos
+  tbody.querySelectorAll('.ver-devices').forEach(function(el) {
+    el.addEventListener('click', function() { toggleDevices(el.dataset.id); });
+  });
+  tbody.querySelectorAll('.btn-editar').forEach(function(el) {
+    el.addEventListener('click', function() { abrirModalEditar(el.dataset.id); });
+  });
+  tbody.querySelectorAll('.btn-revogar').forEach(function(el) {
+    el.addEventListener('click', function() { revogar(el.dataset.id); });
+  });
+  tbody.querySelectorAll('.btn-reativar').forEach(function(el) {
+    el.addEventListener('click', function() { reativar(el.dataset.id); });
+  });
+  tbody.querySelectorAll('.btn-reset').forEach(function(el) {
+    el.addEventListener('click', function() { resetarDevices(el.dataset.id, el.dataset.chave); });
+  });
+  tbody.querySelectorAll('.btn-copiar').forEach(function(el) {
+    el.addEventListener('click', function() { copiar(el.dataset.chave); });
+  });
+  tbody.querySelectorAll('.btn-remover-device').forEach(function(el) {
+    el.addEventListener('click', function() { removerDevice(el.dataset.did, el.dataset.cid); });
+  });
+}
+
+function renderDevices(devices, chaveId) {
+  if (!devices.length) return '<div style="padding:10px;color:var(--muted);font-size:12px">Nenhum dispositivo vinculado ainda.</div>';
+  return '<div class="devices-wrap">' + devices.map(function(d) {
+    return '<div class="device-item">' +
+      '<div class="device-icon">&#128187;</div>' +
+      '<div class="device-info"><div class="device-nome">' + esc(d.device_nome) + '</div><div class="device-uuid">' + d.device_uuid + '</div></div>' +
+      '<div class="device-acesso"><div>Ativado: ' + fmtData(d.ativado_em) + '</div><div>Ultimo acesso: ' + fmtData(d.ultimo_acesso) + '</div></div>' +
+      '<button class="btn btn-danger btn-sm btn-remover-device" data-did="' + d.id + '" data-cid="' + chaveId + '" style="margin-left:10px">&#10005;</button>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function toggleDevices(id) {
+  expandidoId = expandidoId === id ? null : id;
+  filtrar();
+}
+
+// ── ACOES ─────────────────────────────────────────────────────────────────────
+function revogar(id) {
+  if (!confirm('Revogar esta chave? O usuario sera bloqueado.')) return;
+  api('/admin/revogar/' + id, 'POST').then(function(res) {
+    toast(res.ok ? 'Chave revogada.' : res.msg, res.ok ? 'ok' : 'err');
+    if (res.ok) carregar();
+  });
+}
+
+function reativar(id) {
+  api('/admin/reativar/' + id, 'POST').then(function(res) {
+    toast(res.ok ? 'Chave reativada.' : res.msg, res.ok ? 'ok' : 'err');
+    if (res.ok) carregar();
+  });
+}
+
+function resetarDevices(id, chave) {
+  if (!confirm('Resetar TODOS os devices da chave ' + chave + '?\nOs slots serao liberados.')) return;
+  api('/admin/resetar_devices/' + id, 'POST').then(function(res) {
+    toast(res.ok ? 'Devices resetados!' : res.msg, res.ok ? 'ok' : 'err');
+    if (res.ok) { expandidoId = null; carregar(); }
+  });
+}
+
+function removerDevice(deviceId, chaveId) {
+  if (!confirm('Remover este dispositivo?')) return;
+  api('/admin/remover_device/' + deviceId, 'DELETE').then(function(res) {
+    toast(res.ok ? 'Device removido.' : res.msg, res.ok ? 'ok' : 'err');
+    if (res.ok) carregar();
+  });
+}
+
+function copiar(chave) {
+  navigator.clipboard.writeText(chave).then(function() { toast('Chave copiada!'); });
+}
+
+// ── MODAL GERAR ───────────────────────────────────────────────────────────────
+document.getElementById('btn-gerar').addEventListener('click', function() {
+  document.getElementById('modal-gerar').classList.add('show');
+});
+document.getElementById('btn-cancelar-gerar').addEventListener('click', function() {
+  document.getElementById('modal-gerar').classList.remove('show');
+});
+document.getElementById('btn-confirmar-gerar').addEventListener('click', function() {
+  var expira = document.getElementById('g-expira').value;
+  api('/admin/gerar', 'POST', {
+    tipo: document.getElementById('g-tipo').value,
+    max_devices: parseInt(document.getElementById('g-maxdev').value) || 1,
+    expira_em: expira ? expira + 'T23:59:59Z' : null,
+    quantidade: parseInt(document.getElementById('g-qtd').value) || 1,
+    observacao: document.getElementById('g-obs').value.trim()
+  }).then(function(res) {
+    if (res.ok) {
+      document.getElementById('modal-gerar').classList.remove('show');
+      var txt = res.chaves.join('\n');
+      navigator.clipboard.writeText(txt).catch(function(){});
+      toast(res.chaves.length === 1 ? 'Chave gerada: ' + res.chaves[0] : res.chaves.length + ' chaves geradas!');
+      carregar();
+    } else { toast(res.msg || 'Erro ao gerar.', 'err'); }
+  });
+});
+
+// ── MODAL EDITAR ──────────────────────────────────────────────────────────────
+function abrirModalEditar(id) {
+  var c = todasChaves.find(function(x) { return x.id === id; });
+  if (!c) return;
+  document.getElementById('e-id').value     = c.id;
+  document.getElementById('e-obs').value    = c.observacao || '';
+  document.getElementById('e-maxdev').value = c.max_devices || 1;
+  document.getElementById('e-expira').value = c.expira_em ? c.expira_em.slice(0, 10) : '';
+  document.getElementById('modal-editar').classList.add('show');
+}
+document.getElementById('btn-cancelar-editar').addEventListener('click', function() {
+  document.getElementById('modal-editar').classList.remove('show');
+});
+document.getElementById('btn-confirmar-editar').addEventListener('click', function() {
+  var id = document.getElementById('e-id').value;
+  var expira = document.getElementById('e-expira').value;
+  api('/admin/atualizar/' + id, 'POST', {
+    observacao:  document.getElementById('e-obs').value.trim(),
+    max_devices: parseInt(document.getElementById('e-maxdev').value) || 1,
+    expira_em:   expira ? expira + 'T23:59:59Z' : null
+  }).then(function(res) {
+    toast(res.ok ? 'Chave atualizada!' : res.msg, res.ok ? 'ok' : 'err');
+    if (res.ok) { document.getElementById('modal-editar').classList.remove('show'); carregar(); }
+  });
+});
+
+// Fechar modal clicando fora
+document.querySelectorAll('.modal-overlay').forEach(function(o) {
+  o.addEventListener('click', function(e) { if (e.target === o) o.classList.remove('show'); });
+});
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtData(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}); } catch(e) { return iso; }
+}
+function ultimoAcessoGeral(devices) {
+  if (!devices || !devices.length) return '—';
+  var datas = devices.map(function(d) { return new Date(d.ultimo_acesso); }).filter(function(d) { return !isNaN(d); });
+  if (!datas.length) return '—';
+  return fmtData(new Date(Math.max.apply(null, datas)).toISOString());
+}
+
+var toastTimer;
+function toast(msg, tipo) {
+  tipo = tipo || 'ok';
+  var el = document.getElementById('toast');
+  el.textContent = (tipo === 'ok' ? '&#10003; ' : '&#10005; ') + msg;
+  el.className = 'show ' + tipo;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.className = ''; }, 3500);
+}
+
+// Auto-login
+window.addEventListener('load', function() {
+  var saved = sessionStorage.getItem('il_token');
+  if (saved) {
+    document.getElementById('login-token').value = saved;
+    fazerLogin();
+  }
+});
+</script>
+</body>
+</html>
