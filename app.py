@@ -448,13 +448,30 @@ let adminToken  = '';
 function fazerLogin() {
   const t = document.getElementById('login-token').value.trim();
   if (!t) { document.getElementById('login-err').textContent = 'Digite o token.'; return; }
-  document.getElementById('login-err').textContent = 'Verificando...';
+  const btn = document.querySelector('.login-btn');
+  const err = document.getElementById('login-err');
+  btn.disabled = true;
+  btn.textContent = 'Conectando...';
+  err.style.color = 'var(--muted)';
+  err.textContent = 'Aguardando servidor...';
+  let dots = 0;
+  const dotTimer = setInterval(() => {
+    dots = (dots + 1) % 4;
+    err.textContent = 'Aguardando servidor' + '.'.repeat(dots+1);
+  }, 600);
   fetch(SERVIDOR + '/admin/chaves', {
     headers: { 'X-Admin-Token': t }
   })
   .then(r => r.json())
   .then(res => {
-    if (!res.ok) { document.getElementById('login-err').textContent = 'Token inválido.'; return; }
+    clearInterval(dotTimer);
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+    if (!res.ok) {
+      err.style.color = 'var(--danger)';
+      err.textContent = 'Token invalido.';
+      return;
+    }
     adminToken = t;
     sessionStorage.setItem('il_token', t);
     document.getElementById('login-screen').style.display = 'none';
@@ -463,7 +480,13 @@ function fazerLogin() {
     atualizarStats();
     filtrar();
   })
-  .catch(() => { document.getElementById('login-err').textContent = 'Erro de conexão. Aguarde e tente novamente.'; });
+  .catch(() => {
+    clearInterval(dotTimer);
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+    err.style.color = 'var(--danger)';
+    err.textContent = 'Erro de conexao. Tente novamente.';
+  });
 }
 
 function sair() {
