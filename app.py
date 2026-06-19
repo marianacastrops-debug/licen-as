@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 SUPABASE_URL  = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY  = os.environ.get("SUPABASE_KEY", "")
-ADMIN_TOKEN   = os.environ.get("ADMIN_TOKEN", "TROQUE")
+ADMIN_TOKEN   = os.environ.get("ADMIN_TOKEN", "cal61490")
 
 def sb_headers():
     return {
@@ -80,17 +80,6 @@ def options(path=""):
 def index():
     return jsonify({"ok": True, "msg": "InfinityLive Licencas v1.2"})
 
-@app.route("/debug")
-def debug():
-    token_recebido = request.headers.get("X-Admin-Token", "NAO_RECEBIDO")
-    token_esperado = ADMIN_TOKEN
-    return jsonify({
-        "token_recebido": token_recebido,
-        "token_esperado": token_esperado,
-        "bate": token_recebido == token_esperado,
-        "len_recebido": len(token_recebido),
-        "len_esperado": len(token_esperado)
-    })
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  ROTAS PUBLICAS
