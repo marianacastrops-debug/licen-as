@@ -247,10 +247,11 @@ function renderTabela(chaves){
                  '<button class="btn btn-success btn-sm bra" data-id="'+c.id+'">Reativar</button>')+
         '<button class="btn btn-warning btn-sm brs" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'">&#8635; Reset</button>'+
         '<button class="btn btn-ghost btn-sm bcp" data-chave="'+esc(c.chave)+'">&#128203;</button>'+
+        '<button class="btn btn-danger btn-sm bex" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'" title="Excluir permanentemente">&#128465;</button>'+
       '</div></td>';
     tbody.appendChild(tr);
     var td=document.createElement('tr');td.className='row-detail';td.style.display=expandidoId===c.id?'':'none';
-    td.innerHTML='<td colspan="8">'+renderDevs(c.devices,c.id)+'</td>';
+    td.innerHTML='<td colspan="8">'+renderDevs(c.devices,c.id,c)+'</td>';
     tbody.appendChild(td);
   });
   tbody.querySelectorAll('.vd').forEach(function(el){el.addEventListener('click',function(){expandidoId=expandidoId===el.dataset.id?null:el.dataset.id;filtrar();});});
@@ -259,16 +260,69 @@ function renderTabela(chaves){
   tbody.querySelectorAll('.bra').forEach(function(el){el.addEventListener('click',function(){reativar(el.dataset.id);});});
   tbody.querySelectorAll('.brs').forEach(function(el){el.addEventListener('click',function(){resetar(el.dataset.id,el.dataset.chave);});});
   tbody.querySelectorAll('.bcp').forEach(function(el){el.addEventListener('click',function(){copiar(el.dataset.chave);});});
+  tbody.querySelectorAll('.bex').forEach(function(el){el.addEventListener('click',function(){excluir(el.dataset.id, el.dataset.chave);});});
   tbody.querySelectorAll('.brd').forEach(function(el){el.addEventListener('click',function(){removerDevice(el.dataset.did,el.dataset.cid);});});
 }
 
-function renderDevs(devices,cid){
-  if(!devices.length)return '<div style="padding:10px;color:var(--muted);font-size:12px">Nenhum dispositivo ainda.</div>';
-  return '<div class="devices-wrap">'+devices.map(function(d){
-    return '<div class="device-item"><div class="device-icon">&#128187;</div>'+
-      '<div class="device-info"><div class="device-nome">'+esc(d.device_nome)+'</div><div class="device-uuid">'+d.device_uuid+'</div></div>'+
-      '<div class="device-acesso"><div>Ativado: '+fmtD(d.ativado_em)+'</div><div>Ultimo: '+fmtD(d.ultimo_acesso)+'</div></div>'+
-      '<button class="btn btn-danger btn-sm brd" data-did="'+d.id+'" data-cid="'+cid+'" style="margin-left:10px">&#10005;</button></div>';
+function diasRestantes(expira_em) {
+  if (!expira_em) return null;
+  var diff = new Date(expira_em) - new Date();
+  return Math.ceil(diff / (1000*60*60*24));
+}
+
+function renderChaveInfo(c) {
+  var dias = diasRestantes(c.expira_em);
+  var diasTxt, diasCor;
+  if (!c.expira_em) {
+    diasTxt = '♾️ Vitalício'; diasCor = 'var(--green)';
+  } else if (dias <= 0) {
+    diasTxt = '❌ Expirada'; diasCor = 'var(--danger)';
+  } else if (dias <= 7) {
+    diasTxt = '⚠️ ' + dias + ' dias restantes'; diasCor = 'var(--yellow)';
+  } else {
+    diasTxt = '✅ ' + dias + ' dias restantes'; diasCor = 'var(--green)';
+  }
+  var progresso = 0;
+  if (c.expira_em && c.criada_em) {
+    var total = new Date(c.expira_em) - new Date(c.criada_em);
+    var usado = new Date() - new Date(c.criada_em);
+    progresso = Math.min(100, Math.max(0, Math.round((usado/total)*100)));
+  }
+  return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">' +
+      '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Criada em</div>' +
+        '<div style="font-size:11px;font-weight:700;color:var(--text);">'+fmtD(c.criada_em)+'</div></div>' +
+      '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Expira em</div>' +
+        '<div style="font-size:11px;font-weight:700;color:var(--text);">'+(c.expira_em?new Date(c.expira_em).toLocaleDateString('pt-BR'):'Sem expiração')+'</div></div>' +
+      '<div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Ativada em</div>' +
+        '<div style="font-size:11px;font-weight:700;color:var(--text);">'+(c.ativada_em?fmtD(c.ativada_em):'Nunca')+'</div></div>' +
+    '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+      '<div style="font-size:11px;font-weight:700;color:'+diasCor+';">'+diasTxt+'</div>' +
+      (c.expira_em?'<div style="font-size:10px;color:var(--muted);">'+progresso+'% do período usado</div>':'') +
+    '</div>' +
+    (c.expira_em?'<div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">' +
+      '<div style="height:100%;width:'+progresso+'%;background:'+(progresso>=90?'var(--danger)':progresso>=70?'var(--yellow)':'var(--green)')+';;border-radius:3px;transition:width .5s;"></div>' +
+    '</div>':'') +
+  '</div>';
+}
+
+function renderDevs(devices,cid,c){
+  var infoHtml = c ? renderChaveInfo(c) : '';
+  if(!devices.length) return infoHtml+'<div style="padding:10px;color:var(--muted);font-size:12px">Nenhum dispositivo ainda.</div>';
+  return infoHtml+'<div class="devices-wrap">'+devices.map(function(d){
+    return '<div class="device-item">'+
+      '<div class="device-icon">&#128187;</div>'+
+      '<div class="device-info">'+
+        '<div class="device-nome">'+esc(d.device_nome)+'</div>'+
+        '<div class="device-uuid">'+d.device_uuid+'</div>'+
+      '</div>'+
+      '<div class="device-acesso">'+
+        '<div>Ativado: '+fmtD(d.ativado_em)+'</div>'+
+        '<div>Ultimo acesso: '+fmtD(d.ultimo_acesso)+'</div>'+
+      '</div>'+
+      '<button class="btn btn-danger btn-sm brd" data-did="'+d.id+'" data-cid="'+cid+'" style="margin-left:10px">&#10005;</button>'+
+    '</div>';
   }).join('')+'</div>';
 }
 
@@ -276,7 +330,21 @@ function revogar(id){if(!confirm('Revogar esta chave?'))return;sbPatch('licencas
 function reativar(id){sbPatch('licencas','id=eq.'+id,{ativa:true}).then(function(){toast('Reativada!');carregar();});}
 function resetar(id,ch){if(!confirm('Resetar todos os devices da chave '+ch+'?'))return;sbDelete('licenca_devices','licenca_id=eq.'+id).then(function(){toast('Devices resetados!');expandidoId=null;carregar();});}
 function removerDevice(did,cid){if(!confirm('Remover este dispositivo?'))return;sbDelete('licenca_devices','id=eq.'+did).then(function(){toast('Device removido.');carregar();});}
-function copiar(ch){navigator.clipboard.writeText(ch).then(function(){toast('Chave copiada!');});}
+function excluir(id, chave) {
+  if (!confirm('Excluir permanentemente a chave ' + chave + '?\nEsta ação não pode ser desfeita.')) return;
+  sbDelete('licenca_devices','licenca_id=eq.'+id).then(function(){
+    sbDelete('licencas','id=eq.'+id).then(function(){
+      toast('Chave excluída!');
+      expandidoId = null;
+      carregar();
+    }).catch(function(){ toast('Erro ao excluir.','err'); });
+  }).catch(function(){ toast('Erro ao excluir devices.','err'); });
+}
+
+function copiar(ch){
+  var msg = '⚡ Acesso liberado! Entra no Infinity Live com a chave ' + ch + ' e bora! 🚀';
+  navigator.clipboard.writeText(msg).then(function(){ toast('Mensagem copiada! Cole no WhatsApp ✓'); });
+}
 
 function gerarChave(){var c='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',r='';for(var i=0;i<4;i++)r+=c[Math.floor(Math.random()*c.length)];return 'IL-'+r;}
 
