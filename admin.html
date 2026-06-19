@@ -303,8 +303,7 @@ function fazerLogin() {
   document.getElementById('error-box').style.display = 'none';
   carregar(function(){
     sessionStorage.setItem('il_token', t);
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display = 'block';
+    
     btn.disabled = false;
     spinner.style.display = 'none';
     btnText.style.display = 'inline-flex';
@@ -517,8 +516,9 @@ function toast(msg,tipo){tipo=tipo||'ok';var el=document.getElementById('toast')
 
 // Auto-login
 window.addEventListener('load',function(){
-  var saved=sessionStorage.getItem('il_token');
-  if(saved){document.getElementById('login-token').value=saved;fazerLogin();}
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  carregar();
 });
 </script>
 </body>
