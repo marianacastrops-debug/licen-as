@@ -45,7 +45,8 @@ tbody td{padding:12px 16px;vertical-align:middle}
 .slot-dot{width:10px;height:10px;border-radius:50%;background:var(--border)}
 .slot-dot.usado{background:var(--green)}.slot-dot.cheio{background:var(--danger)}
 .slots-txt{font-size:11px;color:var(--muted);white-space:nowrap}
-.actions{display:flex;gap:6px;flex-wrap:wrap}
+.actions{display:flex;gap:5px;flex-wrap:nowrap;align-items:center}
+.btn-icon{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:14px;border-radius:7px;flex-shrink:0}
 .devices-wrap{background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .device-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px}
 .device-item:last-child{border-bottom:none}
@@ -242,12 +243,12 @@ function renderTabela(chaves){
       '<td>'+expFmt+'</td>'+
       '<td style="color:var(--muted);font-size:11px">'+ulAcesso(c.devices)+'</td>'+
       '<td><div class="actions">'+
-        '<button class="btn btn-ghost btn-sm be" data-id="'+c.id+'">&#9998;</button>'+
-        (c.ativa?'<button class="btn btn-danger btn-sm br" data-id="'+c.id+'">Revogar</button>':
-                 '<button class="btn btn-success btn-sm bra" data-id="'+c.id+'">Reativar</button>')+
-        '<button class="btn btn-warning btn-sm brs" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'">&#8635; Reset</button>'+
-        '<button class="btn btn-ghost btn-sm bcp" data-chave="'+esc(c.chave)+'">&#128203;</button>'+
-        '<button class="btn btn-danger btn-sm bex" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'" title="Excluir permanentemente">&#128465;</button>'+
+        '<button class="btn btn-ghost btn-sm btn-icon be" data-id="'+c.id+'" title="Editar">&#9998;</button>'+
+        (c.ativa?'<button class="btn btn-danger btn-sm btn-icon br" data-id="'+c.id+'" title="Revogar">&#128683;</button>':
+                 '<button class="btn btn-success btn-sm btn-icon bra" data-id="'+c.id+'" title="Reativar">&#10003;</button>')+
+        '<button class="btn btn-warning btn-sm btn-icon brs" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'" title="Resetar dispositivos">&#8635;</button>'+
+        '<button class="btn btn-ghost btn-sm btn-icon bcp" data-chave="'+esc(c.chave)+'" title="Copiar chave">&#128203;</button>'+
+        '<button class="btn btn-danger btn-sm btn-icon bex" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'" title="Excluir permanentemente">&#128465;</button>'+
       '</div></td>';
     tbody.appendChild(tr);
     var td=document.createElement('tr');td.className='row-detail';td.style.display=expandidoId===c.id?'':'none';
