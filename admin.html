@@ -94,12 +94,18 @@ tbody td{padding:12px 16px;vertical-align:middle}
     <div class="stat-card"><div class="stat-label">Revogadas</div><div class="stat-value red" id="s-inativas">0</div></div>
     <div class="stat-card"><div class="stat-label">Expiradas</div><div class="stat-value yellow" id="s-expiradas">0</div></div>
   </div>
+  <div class="tabs-origem" style="display:flex;gap:8px;margin-bottom:14px;">
+    <button class="tab-origem-btn active" id="tab-manual" onclick="mudarAbaOrigem('manual')" style="background:var(--red);color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;">🔑 Manuais</button>
+    <button class="tab-origem-btn" id="tab-cakto" onclick="mudarAbaOrigem('cakto')" style="background:rgba(255,255,255,.06);color:#8b96ad;border:none;padding:10px 18px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;">🛒 Vendas Automáticas</button>
+  </div>
   <div class="toolbar">
     <div class="toolbar-title">Chaves de licenca</div>
     <input class="filter-input" id="filtro-busca" placeholder="Buscar chave, cliente...">
     <select class="filter-select" id="filtro-tipo">
       <option value="">Todos os tipos</option>
       <option value="mensal">Mensal</option>
+      <option value="trimestral">Trimestral</option>
+      <option value="semestral">Semestral</option>
       <option value="mentoria">Mentoria</option>
       <option value="vitalicio">Vitalicio</option>
     </select>
@@ -201,6 +207,16 @@ function atualizarStats(){
   document.getElementById('s-expiradas').textContent=expiradas;
 }
 
+var abaOrigemAtual = 'manual';
+function mudarAbaOrigem(origem){
+  abaOrigemAtual = origem;
+  document.getElementById('tab-manual').style.background = origem==='manual' ? 'var(--red)' : 'rgba(255,255,255,.06)';
+  document.getElementById('tab-manual').style.color = origem==='manual' ? '#fff' : '#8b96ad';
+  document.getElementById('tab-cakto').style.background = origem==='cakto' ? 'var(--red)' : 'rgba(255,255,255,.06)';
+  document.getElementById('tab-cakto').style.color = origem==='cakto' ? '#fff' : '#8b96ad';
+  filtrar();
+}
+
 document.getElementById('filtro-busca').addEventListener('input',filtrar);
 document.getElementById('filtro-tipo').addEventListener('change',filtrar);
 document.getElementById('filtro-status').addEventListener('change',filtrar);
@@ -210,6 +226,7 @@ function filtrar(){
   var status=document.getElementById('filtro-status').value;
   var agora=new Date();
   renderTabela(todasChaves.filter(function(c){
+    if((c.origem||'manual')!==abaOrigemAtual)return false;
     if(busca&&!c.chave.toLowerCase().includes(busca)&&!(c.observacao||'').toLowerCase().includes(busca))return false;
     if(tipo&&c.tipo!==tipo)return false;
     if(status==='ativa'){if(!c.ativa||(c.expira_em&&new Date(c.expira_em)<agora))return false;}
