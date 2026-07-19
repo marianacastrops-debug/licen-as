@@ -106,6 +106,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
       <option value="mensal">Mensal</option>
       <option value="trimestral">Trimestral</option>
       <option value="semestral">Semestral</option>
+      <option value="anual">Anual</option>
       <option value="mentoria">Mentoria</option>
       <option value="vitalicio">Vitalicio</option>
     </select>
@@ -134,7 +135,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
     <div class="form-group"><label class="form-label">Cliente / Observacao</label><input class="form-inp" id="g-obs" placeholder="Ex: Joao Silva"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Tipo</label>
-        <select class="form-sel" id="g-tipo"><option value="mensal">Mensal</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="mentoria">Mentoria</option><option value="vitalicio">Vitalicio</option></select>
+        <select class="form-sel" id="g-tipo"><option value="mensal">Mensal</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="mentoria">Mentoria</option><option value="vitalicio">Vitalicio</option></select>
       </div>
       <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-inp" id="g-maxdev" type="number" value="2" min="1" max="10"></div>
     </div>
@@ -369,7 +370,7 @@ function gerarChave(){var c='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',r='';for(var 
 document.getElementById('btn-gerar').addEventListener('click',function(){document.getElementById('modal-gerar').classList.add('show');});
 document.getElementById('g-tipo').addEventListener('change', function(){
   var tipo = this.value;
-  var dias = tipo === 'mensal' ? 30 : tipo === 'trimestral' ? 90 : tipo === 'semestral' ? 180 : tipo === 'mentoria' ? 360 : 0;
+  var dias = tipo === 'mensal' ? 30 : tipo === 'trimestral' ? 90 : tipo === 'semestral' ? 180 : tipo === 'anual' ? 365 : tipo === 'mentoria' ? 360 : 0;
   var expiraInput = document.getElementById('g-expira');
   if (dias > 0) {
     var d = new Date(); d.setDate(d.getDate() + dias);
@@ -386,7 +387,7 @@ document.getElementById('btn-confirmar-gerar').addEventListener('click',function
   var qtd=Math.min(parseInt(document.getElementById('g-qtd').value)||1,50);
   var obs=document.getElementById('g-obs').value.trim();
   if (!expira) {
-    var dias = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='mentoria' ? 360 : 0;
+    var dias = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='anual' ? 365 : tipo==='mentoria' ? 360 : 0;
     if (dias > 0) { var dd=new Date(); dd.setDate(dd.getDate()+dias); expira=dd.toISOString().slice(0,10); }
   }
   var geradas=[],pendentes=qtd;
