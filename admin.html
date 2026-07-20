@@ -167,6 +167,29 @@ tbody td{padding:12px 16px;vertical-align:middle}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-renovar">
+  <div class="modal">
+    <div class="modal-title">Renovar chave</div>
+    <input type="hidden" id="r-id">
+    <div class="form-group">
+      <label class="form-label">Escolha o plano da renovacao</label>
+      <select class="form-sel" id="r-tipo">
+        <option value="mensal">Mensal (30 dias)</option>
+        <option value="trimestral">Trimestral (90 dias)</option>
+        <option value="semestral">Semestral (180 dias)</option>
+        <option value="anual">Anual (365 dias)</option>
+        <option value="mentoria">Mentoria (360 dias)</option>
+        <option value="vitalicio">Vitalicio (sem expiracao)</option>
+      </select>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">A validade conta a partir de hoje, e a chave e reativada automaticamente.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-cancelar-renovar">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-renovar">Renovar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -353,14 +376,19 @@ function reativar(id){sbPatch('licencas','id=eq.'+id,{ativa:true}).then(function
 function resetar(id,ch){if(!confirm('Resetar todos os devices da chave '+ch+'?'))return;sbDelete('licenca_devices','licenca_id=eq.'+id).then(function(){toast('Devices resetados!');expandidoId=null;carregar();});}
 
 function renovar(id,tipo){
-  var diasPadrao = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='anual' ? 365 : tipo==='mentoria' ? 360 : 30;
-  var resposta = prompt('Renovar por quantos dias (a partir de hoje)?\n\nSugestão pro plano "'+tipo+'": '+diasPadrao+' dias.', diasPadrao);
-  if(resposta===null)return; // cancelou
-  var dias = parseInt(resposta,10);
-  if(!dias||dias<=0){alert('Digite um número de dias válido.');return;}
-  var novaData = new Date(Date.now() + dias*24*60*60*1000).toISOString();
-  sbPatch('licencas','id=eq.'+id,{expira_em:novaData,ativa:true}).then(function(){toast('Chave renovada por '+dias+' dias!');carregar();});
+  document.getElementById('r-id').value=id;
+  document.getElementById('r-tipo').value=tipo||'mensal';
+  document.getElementById('modal-renovar').classList.add('show');
 }
+document.getElementById('btn-cancelar-renovar').addEventListener('click',function(){document.getElementById('modal-renovar').classList.remove('show');});
+document.getElementById('btn-confirmar-renovar').addEventListener('click',function(){
+  var id=document.getElementById('r-id').value;
+  var tipo=document.getElementById('r-tipo').value;
+  var dias = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='anual' ? 365 : tipo==='mentoria' ? 360 : 0; // vitalicio = 0 (sem expiracao)
+  var novaExpira = dias>0 ? new Date(Date.now() + dias*24*60*60*1000).toISOString() : null;
+  sbPatch('licencas','id=eq.'+id,{tipo:tipo,expira_em:novaExpira,ativa:true})
+    .then(function(){toast('Chave renovada como '+tipo+'!');document.getElementById('modal-renovar').classList.remove('show');carregar();});
+});
 function removerDevice(did,cid){if(!confirm('Remover este dispositivo?'))return;sbDelete('licenca_devices','id=eq.'+did).then(function(){toast('Device removido.');carregar();});}
 function excluir(id, chave) {
   if (!confirm('Excluir permanentemente a chave ' + chave + '?\nEsta ação não pode ser desfeita.')) return;
