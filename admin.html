@@ -39,6 +39,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
 .badge-ativa{background:rgba(0,230,118,.15);color:var(--green)}.badge-inativa{background:rgba(255,51,85,.15);color:var(--danger)}
 .badge-expirada{background:rgba(255,214,0,.15);color:var(--yellow)}.badge-mensal{background:rgba(0,200,255,.12);color:var(--blue)}
 .badge-mentoria{background:rgba(232,0,15,.12);color:#ff6b6b}.badge-vitalicio{background:rgba(0,230,118,.12);color:var(--green)}
+.badge-trimestral{background:rgba(168,85,247,.15);color:#c084fc}.badge-semestral{background:rgba(251,146,60,.15);color:#fb923c}.badge-anual{background:rgba(236,72,153,.15);color:#f472b6}
 .chave-txt{font-family:monospace;font-size:14px;font-weight:700;letter-spacing:2px;color:var(--blue)}
 .slots-bar{display:flex;align-items:center;gap:8px}
 .slots-dots{display:flex;gap:4px}
@@ -270,7 +271,7 @@ function renderTabela(chaves){
     if(!c.ativa){sC='badge-inativa';sL='Revogada';}
     else if(c.expira_em&&new Date(c.expira_em)<agora){sC='badge-expirada';sL='Expirada';}
     else{sC='badge-ativa';sL='Ativa';}
-    var tL={mensal:'Mensal',mentoria:'Mentoria',vitalicio:'Vitalicio'}[c.tipo]||c.tipo;
+    var tL={mensal:'Mensal',trimestral:'Trimestral',semestral:'Semestral',anual:'Anual',mentoria:'Mentoria',vitalicio:'Vitalicio'}[c.tipo]||c.tipo;
     var max=c.max_devices||1,us=c.slots_usados||0,dots='';
     for(var i=0;i<max;i++)dots+='<div class="slot-dot'+(i<us?(us>=max?' cheio':' usado'):'')+'" ></div>';
     var expFmt=c.expira_em?new Date(c.expira_em).toLocaleDateString('pt-BR'):'—';
