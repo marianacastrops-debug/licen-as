@@ -353,10 +353,13 @@ function reativar(id){sbPatch('licencas','id=eq.'+id,{ativa:true}).then(function
 function resetar(id,ch){if(!confirm('Resetar todos os devices da chave '+ch+'?'))return;sbDelete('licenca_devices','licenca_id=eq.'+id).then(function(){toast('Devices resetados!');expandidoId=null;carregar();});}
 
 function renovar(id,tipo){
-  var dias = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='anual' ? 365 : tipo==='mentoria' ? 360 : 30;
-  if(!confirm('Renovar essa chave por mais '+dias+' dias (a partir de hoje) e reativar o acesso?'))return;
+  var diasPadrao = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='anual' ? 365 : tipo==='mentoria' ? 360 : 30;
+  var resposta = prompt('Renovar por quantos dias (a partir de hoje)?\n\nSugestão pro plano "'+tipo+'": '+diasPadrao+' dias.', diasPadrao);
+  if(resposta===null)return; // cancelou
+  var dias = parseInt(resposta,10);
+  if(!dias||dias<=0){alert('Digite um número de dias válido.');return;}
   var novaData = new Date(Date.now() + dias*24*60*60*1000).toISOString();
-  sbPatch('licencas','id=eq.'+id,{expira_em:novaData,ativa:true}).then(function(){toast('Chave renovada!');carregar();});
+  sbPatch('licencas','id=eq.'+id,{expira_em:novaData,ativa:true}).then(function(){toast('Chave renovada por '+dias+' dias!');carregar();});
 }
 function removerDevice(did,cid){if(!confirm('Remover este dispositivo?'))return;sbDelete('licenca_devices','id=eq.'+did).then(function(){toast('Device removido.');carregar();});}
 function excluir(id, chave) {
