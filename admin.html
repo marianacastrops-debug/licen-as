@@ -119,6 +119,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
       <option value="expirada">Expiradas</option>
     </select>
     <button class="btn btn-primary" id="btn-gerar">+ Gerar chave</button>
+    <button class="btn btn-success" id="btn-novoacesso">&#9993; Reenviar Acesso</button>
   </div>
   <div class="table-wrap">
     <table>
@@ -187,6 +188,27 @@ tbody td{padding:12px 16px;vertical-align:middle}
     <div class="modal-actions">
       <button class="btn btn-ghost" id="btn-cancelar-renovar">Cancelar</button>
       <button class="btn btn-primary" id="btn-confirmar-renovar">Renovar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-novoacesso">
+  <div class="modal">
+    <div class="modal-title">&#9993; Reenviar Acesso (gera chave nova + envia e-mail)</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Use quando o cliente comprou mas não existe nenhuma chave pra ele ainda — por exemplo, se o webhook falhou completamente.</div>
+    <div class="form-group"><label class="form-label">E-mail do cliente</label><input class="form-inp" id="na-email" placeholder="cliente@email.com"></div>
+    <div class="form-group"><label class="form-label">Nome do cliente</label><input class="form-inp" id="na-nome" placeholder="Ex: Joao Silva"></div>
+    <div class="form-group"><label class="form-label">Plano</label>
+      <select class="form-sel" id="na-plano">
+        <option value="mensal">Mensal (30 dias)</option>
+        <option value="trimestral">Trimestral (90 dias)</option>
+        <option value="semestral">Semestral (180 dias)</option>
+        <option value="anual">Anual (365 dias)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-cancelar-novoacesso">Cancelar</button>
+      <button class="btn btn-success" id="btn-confirmar-novoacesso">Gerar e enviar</button>
     </div>
   </div>
 </div>
@@ -278,7 +300,7 @@ function renderTabela(chaves){
     var tr=document.createElement('tr');
     tr.innerHTML=
       '<td><div class="chave-txt">'+esc(c.chave)+'</div><div style="font-size:10px;color:var(--muted);font-family:monospace">'+c.id.slice(0,8)+'...</div></td>'+
-      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.observacao?esc(c.observacao):'<span style="color:var(--muted);font-style:italic">sem descricao</span>')+'</td>'+
+      '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.observacao?esc(c.observacao):'<span style="color:var(--muted);font-style:italic">sem descricao</span>')+(c.email?'<div style="font-size:10px;color:var(--muted);margin-top:2px">'+esc(c.email)+'</div>':'')+'</td>'+
       '<td><span class="badge badge-'+(c.tipo||'mensal')+'">'+tL+'</span></td>'+
       '<td><span class="badge '+sC+'">'+sL+'</span></td>'+
       '<td><div class="slots-bar"><div class="slots-dots">'+dots+'</div><div class="slots-txt">'+us+'/'+max+'</div></div>'+
@@ -290,6 +312,7 @@ function renderTabela(chaves){
         (c.ativa?'<button class="btn btn-danger btn-sm btn-labeled br" data-id="'+c.id+'" title="Revogar">&#128683; Bloquear</button>':
                  '<button class="btn btn-success btn-sm btn-labeled bra" data-id="'+c.id+'" title="Reativar">&#10003; Reativar</button>')+
         '<button class="btn btn-warning btn-sm btn-labeled brs" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'" title="Resetar dispositivos">&#8635; Resetar</button>'+
+        (c.email?'<button class="btn btn-success btn-sm btn-icon breenv" data-chave="'+esc(c.chave)+'" data-email="'+esc(c.email)+'" data-nome="'+esc(c.observacao||'')+'" data-tipo="'+(c.tipo||'mensal')+'" title="Reenviar e-mail de acesso">&#9993;</button>':'')+
         '<button class="btn btn-primary btn-sm btn-labeled bren" data-id="'+c.id+'" data-tipo="'+(c.tipo||'mensal')+'" title="Renovar por mais um periodo">&#128257; Renovar</button>'+
         '<button class="btn btn-ghost btn-sm btn-icon bcp" data-chave="'+esc(c.chave)+'" title="Copiar chave">&#128203;</button>'+
         '<button class="btn btn-danger btn-sm btn-icon bex" data-id="'+c.id+'" data-chave="'+esc(c.chave)+'" title="Excluir permanentemente">&#128465;</button>'+
@@ -307,6 +330,7 @@ function renderTabela(chaves){
   tbody.querySelectorAll('.bren').forEach(function(el){el.addEventListener('click',function(){renovar(el.dataset.id,el.dataset.tipo);});});
   tbody.querySelectorAll('.bcp').forEach(function(el){el.addEventListener('click',function(){copiar(el.dataset.chave);});});
   tbody.querySelectorAll('.bex').forEach(function(el){el.addEventListener('click',function(){excluir(el.dataset.id, el.dataset.chave);});});
+  tbody.querySelectorAll('.breenv').forEach(function(el){el.addEventListener('click',function(){reenviarEmail(el.dataset.chave,el.dataset.email,el.dataset.nome,el.dataset.tipo);});});
   tbody.querySelectorAll('.brd').forEach(function(el){el.addEventListener('click',function(){removerDevice(el.dataset.did,el.dataset.cid);});});
 }
 
@@ -406,6 +430,62 @@ function copiar(ch){
   var msg = '⚡ Acesso liberado! Entra no WorkLive com a chave ' + ch + ' e bora! 🚀';
   navigator.clipboard.writeText(msg).then(function(){ toast('Mensagem copiada! Cole no WhatsApp ✓'); });
 }
+
+var ADMIN_RESEND_SECRET_CACHE = null;
+function pegarSenhaAdmin(){
+  if(ADMIN_RESEND_SECRET_CACHE) return ADMIN_RESEND_SECRET_CACHE;
+  var s = prompt('Senha de admin (pra reenviar e-mails):');
+  if(s) ADMIN_RESEND_SECRET_CACHE = s;
+  return s;
+}
+
+function reenviarEmail(chave, email, nome, tipo){
+  if(!confirm('Reenviar o e-mail de acesso da chave '+chave+' para '+email+'?')) return;
+  var senha = pegarSenhaAdmin();
+  if(!senha) return;
+  fetch('https://worklive-mobile.vercel.app/api/reenviar-email', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ senha:senha, chave:chave, email:email, nome:nome, tipo:tipo })
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.ok){ toast('E-mail reenviado para '+email+'!'); }
+    else {
+      ADMIN_RESEND_SECRET_CACHE = null; // senha pode estar errada, pede de novo na próxima
+      toast('Erro: '+(data.erro||'não foi possível reenviar.'),'err');
+    }
+  }).catch(function(e){ toast('Erro de conexão: '+e.message,'err'); });
+}
+
+function abrirNovoAcesso(){
+  document.getElementById('na-email').value='';
+  document.getElementById('na-nome').value='';
+  document.getElementById('na-plano').value='mensal';
+  document.getElementById('modal-novoacesso').classList.add('show');
+}
+document.getElementById('btn-novoacesso').addEventListener('click',abrirNovoAcesso);
+document.getElementById('btn-cancelar-novoacesso').addEventListener('click',function(){document.getElementById('modal-novoacesso').classList.remove('show');});
+document.getElementById('btn-confirmar-novoacesso').addEventListener('click',function(){
+  var email=document.getElementById('na-email').value.trim();
+  var nome=document.getElementById('na-nome').value.trim();
+  var plano=document.getElementById('na-plano').value;
+  if(!email){ toast('Digite o e-mail do cliente.','err'); return; }
+  var senha = pegarSenhaAdmin();
+  if(!senha) return;
+  fetch('https://worklive-mobile.vercel.app/api/reenviar-acesso', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ senha:senha, email:email, nome:nome, plano:plano })
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.ok){
+      toast(data.email_enviado ? 'Nova chave gerada e enviada: '+data.chave : 'Chave gerada ('+data.chave+') mas e-mail falhou.');
+      document.getElementById('modal-novoacesso').classList.remove('show');
+      carregar();
+    } else {
+      ADMIN_RESEND_SECRET_CACHE = null;
+      toast('Erro: '+(data.erro||'não foi possível gerar acesso.'),'err');
+    }
+  }).catch(function(e){ toast('Erro de conexão: '+e.message,'err'); });
+});
 
 function gerarChave(){var c='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',r='';for(var i=0;i<4;i++)r+=c[Math.floor(Math.random()*c.length)];return 'IL-'+r;}
 
