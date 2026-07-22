@@ -158,6 +158,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
     <div class="modal-title">Editar chave</div>
     <input type="hidden" id="e-id">
     <div class="form-group"><label class="form-label">Cliente / Observacao</label><input class="form-inp" id="e-obs"></div>
+    <div class="form-group"><label class="form-label">E-mail do cliente</label><input class="form-inp" id="e-email" type="email" placeholder="cliente@email.com"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-inp" id="e-maxdev" type="number" min="1" max="10"></div>
       <div class="form-group"><label class="form-label">Nova expiracao</label><input class="form-inp" id="e-expira" type="date"></div>
@@ -525,6 +526,7 @@ function abrirEditar(id){
   var c=todasChaves.find(function(x){return x.id===id;});if(!c)return;
   document.getElementById('e-id').value=c.id;
   document.getElementById('e-obs').value=c.observacao||'';
+  document.getElementById('e-email').value=c.email||'';
   document.getElementById('e-maxdev').value=c.max_devices||1;
   document.getElementById('e-expira').value=c.expira_em?c.expira_em.slice(0,10):'';
   document.getElementById('modal-editar').classList.add('show');
@@ -533,7 +535,7 @@ document.getElementById('btn-cancelar-editar').addEventListener('click',function
 document.getElementById('btn-confirmar-editar').addEventListener('click',function(){
   var id=document.getElementById('e-id').value;
   var expira=document.getElementById('e-expira').value;
-  sbPatch('licencas','id=eq.'+id,{observacao:document.getElementById('e-obs').value.trim(),max_devices:parseInt(document.getElementById('e-maxdev').value)||1,expira_em:expira?expira+'T23:59:59Z':null})
+  sbPatch('licencas','id=eq.'+id,{observacao:document.getElementById('e-obs').value.trim(),email:document.getElementById('e-email').value.trim()||null,max_devices:parseInt(document.getElementById('e-maxdev').value)||1,expira_em:expira?expira+'T23:59:59Z':null})
   .then(function(){toast('Atualizado!');document.getElementById('modal-editar').classList.remove('show');carregar();});
 });
 
