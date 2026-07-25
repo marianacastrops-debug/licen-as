@@ -46,6 +46,11 @@ tbody td{padding:12px 16px;vertical-align:middle}
 .slot-dot{width:10px;height:10px;border-radius:50%;background:var(--border)}
 .slot-dot.usado{background:var(--green)}.slot-dot.cheio{background:var(--danger)}
 .slots-txt{font-size:11px;color:var(--muted);white-space:nowrap}
+.slot-dot.wc-usado{background:var(--blue)}.slot-dot.wc-cheio{background:var(--danger)}
+.wc-card{margin-top:7px;padding:7px 10px;background:rgba(0,200,255,.05);border:1px solid rgba(0,200,255,.22);border-radius:9px;display:flex;align-items:center;gap:8px;min-width:190px}
+.wc-card-icon{font-size:15px;flex-shrink:0}
+.wc-card-label{font-size:8.5px;color:var(--blue);font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+.wc-card-txt{font-size:12px;color:var(--blue);font-weight:800;flex-shrink:0}
 .actions{display:flex;gap:5px;flex-wrap:nowrap;align-items:center}
 .btn-icon{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:14px;border-radius:7px;flex-shrink:0}
 .btn-labeled{height:30px;padding:0 12px;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;border-radius:7px;flex-shrink:0;white-space:nowrap}
@@ -141,7 +146,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
         <select class="form-sel" id="g-tipo"><option value="mensal">Mensal</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="mentoria">Mentoria</option><option value="vitalicio">Vitalicio</option></select>
       </div>
       <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-inp" id="g-maxdev" type="number" value="2" min="1" max="10"></div>
-      <div class="form-group"><label class="form-label">Vagas WorkCam <span style="color:var(--muted);font-weight:400">(opcional, independente das vagas WorkLive)</span></label><input class="form-inp" id="g-maxdev-workcam" type="number" value="0" min="0" max="10"></div>
+      <div class="form-group"><label class="form-label">Vagas WorkCam <span style="color:var(--muted);font-weight:400">(opcional, independente das vagas WorkLive)</span></label><div style="display:flex;gap:6px"><input class="form-inp" id="g-maxdev-workcam" type="number" value="0" min="0" max="10" style="flex:1"><button type="button" class="btn btn-ghost btn-sm" id="g-maxdev-workcam-reset" title="Voltar para o padrao (0)">&#8635;</button></div></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Expira em (vazio = sem expiracao)</label><input class="form-inp" id="g-expira" type="date"></div>
@@ -162,7 +167,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
     <div class="form-group"><label class="form-label">E-mail do cliente</label><input class="form-inp" id="e-email" type="email" placeholder="cliente@email.com"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-inp" id="e-maxdev" type="number" min="1" max="10"></div>
-      <div class="form-group"><label class="form-label">Vagas WorkCam <span style="color:var(--muted);font-weight:400">(independente das vagas WorkLive)</span></label><input class="form-inp" id="e-maxdev-workcam" type="number" min="0" max="10"></div>
+      <div class="form-group"><label class="form-label">Vagas WorkCam <span style="color:var(--muted);font-weight:400">(independente das vagas WorkLive)</span></label><div style="display:flex;gap:6px"><input class="form-inp" id="e-maxdev-workcam" type="number" min="0" max="10" style="flex:1"><button type="button" class="btn btn-ghost btn-sm" id="e-maxdev-workcam-reset" title="Voltar para o padrao (0)">&#8635;</button></div></div>
       <div class="form-group"><label class="form-label">Nova expiracao</label><input class="form-inp" id="e-expira" type="date"></div>
     </div>
     <div class="modal-actions">
@@ -300,6 +305,8 @@ function renderTabela(chaves){
     var tL={mensal:'Mensal',trimestral:'Trimestral',semestral:'Semestral',anual:'Anual',mentoria:'Mentoria',vitalicio:'Vitalicio'}[c.tipo]||c.tipo;
     var max=c.max_devices||1,us=c.slots_usados||0,dots='';
     for(var i=0;i<max;i++)dots+='<div class="slot-dot'+(i<us?(us>=max?' cheio':' usado'):'')+'" ></div>';
+    var maxWc=c.max_devices_workcam||0,usWc=c.slots_usados_workcam||0,dotsWc='';
+    for(var j=0;j<maxWc;j++)dotsWc+='<div class="slot-dot'+(j<usWc?(usWc>=maxWc?' wc-cheio':' wc-usado'):'')+'" ></div>';
     var expFmt=c.expira_em?new Date(c.expira_em).toLocaleDateString('pt-BR'):'—';
     var tr=document.createElement('tr');
     tr.innerHTML=
@@ -308,7 +315,7 @@ function renderTabela(chaves){
       '<td><span class="badge badge-'+(c.tipo||'mensal')+'">'+tL+'</span></td>'+
       '<td><span class="badge '+sC+'">'+sL+'</span></td>'+
       '<td><div class="slots-bar"><div class="slots-dots">'+dots+'</div><div class="slots-txt">'+us+'/'+max+'</div></div>'+
-        (c.max_devices_workcam?'<div style="font-size:9px;color:#00d4ff;margin-top:2px">&#128247; WorkCam: '+(c.slots_usados_workcam||0)+'/'+c.max_devices_workcam+'</div>':'')+
+        (maxWc?'<div class="wc-card"><div class="wc-card-icon">&#128247;</div><div style="flex:1"><div class="wc-card-label">WorkCam</div><div class="slots-dots">'+dotsWc+'</div></div><div class="wc-card-txt">'+usWc+'/'+maxWc+'</div></div>':'')+
         '<div style="font-size:10px;color:var(--muted);margin-top:3px">'+c.devices.length+' disp. <span class="vd" data-id="'+c.id+'" style="cursor:pointer;color:var(--blue);margin-left:4px">'+(expandidoId===c.id?'&#9650; ocultar':'&#9660; ver')+'</span></div></td>'+
       '<td>'+expFmt+'</td>'+
       '<td style="color:var(--muted);font-size:11px">'+ulAcesso(c.devices)+'</td>'+
@@ -469,6 +476,8 @@ function abrirNovoAcesso(){
   document.getElementById('modal-novoacesso').classList.add('show');
 }
 document.getElementById('btn-novoacesso').addEventListener('click',abrirNovoAcesso);
+document.getElementById('g-maxdev-workcam-reset').addEventListener('click',function(){document.getElementById('g-maxdev-workcam').value=0;});
+document.getElementById('e-maxdev-workcam-reset').addEventListener('click',function(){document.getElementById('e-maxdev-workcam').value=0;});
 document.getElementById('btn-cancelar-novoacesso').addEventListener('click',function(){document.getElementById('modal-novoacesso').classList.remove('show');});
 document.getElementById('btn-confirmar-novoacesso').addEventListener('click',function(){
   var email=document.getElementById('na-email').value.trim();
