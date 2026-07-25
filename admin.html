@@ -47,10 +47,8 @@ tbody td{padding:12px 16px;vertical-align:middle}
 .slot-dot.usado{background:var(--green)}.slot-dot.cheio{background:var(--danger)}
 .slots-txt{font-size:11px;color:var(--muted);white-space:nowrap}
 .slot-dot.wc-usado{background:var(--blue)}.slot-dot.wc-cheio{background:var(--danger)}
-.wc-card{margin-top:7px;padding:7px 10px;background:rgba(0,200,255,.05);border:1px solid rgba(0,200,255,.22);border-radius:9px;display:flex;align-items:center;gap:8px;min-width:190px}
-.wc-card-icon{font-size:15px;flex-shrink:0}
+.wc-card{margin-top:6px}
 .wc-card-label{font-size:8.5px;color:var(--blue);font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
-.wc-card-txt{font-size:12px;color:var(--blue);font-weight:800;flex-shrink:0}
 .actions{display:flex;gap:5px;flex-wrap:nowrap;align-items:center}
 .btn-icon{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:14px;border-radius:7px;flex-shrink:0}
 .btn-labeled{height:30px;padding:0 12px;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;border-radius:7px;flex-shrink:0;white-space:nowrap}
@@ -315,7 +313,7 @@ function renderTabela(chaves){
       '<td><span class="badge badge-'+(c.tipo||'mensal')+'">'+tL+'</span></td>'+
       '<td><span class="badge '+sC+'">'+sL+'</span></td>'+
       '<td><div class="slots-bar"><div class="slots-dots">'+dots+'</div><div class="slots-txt">'+us+'/'+max+'</div></div>'+
-        (maxWc?'<div class="wc-card"><div class="wc-card-icon">&#128247;</div><div style="flex:1"><div class="wc-card-label">WorkCam</div><div class="slots-dots">'+dotsWc+'</div></div><div class="wc-card-txt">'+usWc+'/'+maxWc+'</div></div>':'')+
+        (maxWc?'<div class="wc-card"><div class="wc-card-label">WorkCam</div><div class="slots-dots">'+dotsWc+'</div></div>':'')+
         '<div style="font-size:10px;color:var(--muted);margin-top:3px">'+c.devices.length+' disp. <span class="vd" data-id="'+c.id+'" style="cursor:pointer;color:var(--blue);margin-left:4px">'+(expandidoId===c.id?'&#9650; ocultar':'&#9660; ver')+'</span></div></td>'+
       '<td>'+expFmt+'</td>'+
       '<td style="color:var(--muted);font-size:11px">'+ulAcesso(c.devices)+'</td>'+
