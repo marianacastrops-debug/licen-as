@@ -141,6 +141,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
         <select class="form-sel" id="g-tipo"><option value="mensal">Mensal</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="mentoria">Mentoria</option><option value="vitalicio">Vitalicio</option></select>
       </div>
       <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-inp" id="g-maxdev" type="number" value="2" min="1" max="10"></div>
+      <div class="form-group"><label class="form-label">Vagas WorkCam <span style="color:var(--muted);font-weight:400">(opcional, independente das vagas WorkLive)</span></label><input class="form-inp" id="g-maxdev-workcam" type="number" value="0" min="0" max="10"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Expira em (vazio = sem expiracao)</label><input class="form-inp" id="g-expira" type="date"></div>
@@ -161,6 +162,7 @@ tbody td{padding:12px 16px;vertical-align:middle}
     <div class="form-group"><label class="form-label">E-mail do cliente</label><input class="form-inp" id="e-email" type="email" placeholder="cliente@email.com"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Max dispositivos</label><input class="form-inp" id="e-maxdev" type="number" min="1" max="10"></div>
+      <div class="form-group"><label class="form-label">Vagas WorkCam <span style="color:var(--muted);font-weight:400">(independente das vagas WorkLive)</span></label><input class="form-inp" id="e-maxdev-workcam" type="number" min="0" max="10"></div>
       <div class="form-group"><label class="form-label">Nova expiracao</label><input class="form-inp" id="e-expira" type="date"></div>
     </div>
     <div class="modal-actions">
@@ -236,11 +238,12 @@ function carregar() {
     if(!Array.isArray(chaves)){toast('Erro ao carregar.','err');return;}
     if(!chaves.length){todasChaves=[];atualizarStats();filtrar();return;}
     var pendentes=chaves.length;
-    chaves.forEach(function(c){c.devices=[];c.slots_usados=0;});
+    chaves.forEach(function(c){c.devices=[];c.slots_usados=0;c.slots_usados_workcam=0;});
     chaves.forEach(function(c){
       sbGet('licenca_devices',{'licenca_id':'eq.'+c.id,'order':'ativado_em.asc'}).then(function(devs){
         c.devices=Array.isArray(devs)?devs:[];
-        c.slots_usados=c.devices.length;
+        c.slots_usados=c.devices.filter(function(d){return (d.produto||'worklive')!=='workcam';}).length;
+        c.slots_usados_workcam=c.devices.filter(function(d){return d.produto==='workcam';}).length;
         if(--pendentes===0){todasChaves=chaves;atualizarStats();filtrar();}
       }).catch(function(){if(--pendentes===0){todasChaves=chaves;atualizarStats();filtrar();}});
     });
@@ -305,6 +308,7 @@ function renderTabela(chaves){
       '<td><span class="badge badge-'+(c.tipo||'mensal')+'">'+tL+'</span></td>'+
       '<td><span class="badge '+sC+'">'+sL+'</span></td>'+
       '<td><div class="slots-bar"><div class="slots-dots">'+dots+'</div><div class="slots-txt">'+us+'/'+max+'</div></div>'+
+        (c.max_devices_workcam?'<div style="font-size:9px;color:#00d4ff;margin-top:2px">&#128247; WorkCam: '+(c.slots_usados_workcam||0)+'/'+c.max_devices_workcam+'</div>':'')+
         '<div style="font-size:10px;color:var(--muted);margin-top:3px">'+c.devices.length+' disp. <span class="vd" data-id="'+c.id+'" style="cursor:pointer;color:var(--blue);margin-left:4px">'+(expandidoId===c.id?'&#9650; ocultar':'&#9660; ver')+'</span></div></td>'+
       '<td>'+expFmt+'</td>'+
       '<td style="color:var(--muted);font-size:11px">'+ulAcesso(c.devices)+'</td>'+
@@ -382,10 +386,11 @@ function renderDevs(devices,cid,c){
   var infoHtml = c ? renderChaveInfo(c) : '';
   if(!devices.length) return infoHtml+'<div style="padding:10px;color:var(--muted);font-size:12px">Nenhum dispositivo ainda.</div>';
   return infoHtml+'<div class="devices-wrap">'+devices.map(function(d){
+    var isWc = d.produto==='workcam';
     return '<div class="device-item">'+
-      '<div class="device-icon">&#128187;</div>'+
+      '<div class="device-icon">'+(isWc?'&#128247;':'&#128187;')+'</div>'+
       '<div class="device-info">'+
-        '<div class="device-nome">'+esc(d.device_nome)+'</div>'+
+        '<div class="device-nome">'+esc(d.device_nome)+' <span style="font-size:9px;font-weight:700;color:'+(isWc?'#00d4ff':'#8b96ad')+';border:1px solid currentColor;border-radius:4px;padding:1px 5px;margin-left:4px">'+(isWc?'WORKCAM':'WORKLIVE')+'</span></div>'+
         '<div class="device-uuid">'+d.device_uuid+'</div>'+
       '</div>'+
       '<div class="device-acesso">'+
@@ -506,6 +511,7 @@ document.getElementById('btn-cancelar-gerar').addEventListener('click',function(
 document.getElementById('btn-confirmar-gerar').addEventListener('click',function(){
   var tipo=document.getElementById('g-tipo').value;
   var maxDev=parseInt(document.getElementById('g-maxdev').value)||1;
+  var maxDevWorkcam=parseInt(document.getElementById('g-maxdev-workcam').value)||0;
   var expira=document.getElementById('g-expira').value;
   var qtd=Math.min(parseInt(document.getElementById('g-qtd').value)||1,50);
   var obs=document.getElementById('g-obs').value.trim();
@@ -516,7 +522,7 @@ document.getElementById('btn-confirmar-gerar').addEventListener('click',function
   var geradas=[],pendentes=qtd;
   for(var i=0;i<qtd;i++){(function(){
     var ch=gerarChave();
-    sbPost('licencas',{chave:ch,tipo:tipo,max_devices:maxDev,ativa:true,expira_em:expira?expira+'T23:59:59Z':null,criada_em:new Date().toISOString(),observacao:obs})
+    sbPost('licencas',{chave:ch,tipo:tipo,max_devices:maxDev,max_devices_workcam:maxDevWorkcam,ativa:true,expira_em:expira?expira+'T23:59:59Z':null,criada_em:new Date().toISOString(),observacao:obs})
     .then(function(){geradas.push(ch);if(--pendentes===0){document.getElementById('modal-gerar').classList.remove('show');navigator.clipboard.writeText(geradas.join('\n')).catch(function(){});toast(geradas.length===1?'Chave: '+geradas[0]:geradas.length+' chaves geradas!');carregar();}})
     .catch(function(){if(--pendentes===0)toast('Erro ao gerar.','err');});
   })();}
@@ -528,6 +534,7 @@ function abrirEditar(id){
   document.getElementById('e-obs').value=c.observacao||'';
   document.getElementById('e-email').value=c.email||'';
   document.getElementById('e-maxdev').value=c.max_devices||1;
+  document.getElementById('e-maxdev-workcam').value=c.max_devices_workcam||0;
   document.getElementById('e-expira').value=c.expira_em?c.expira_em.slice(0,10):'';
   document.getElementById('modal-editar').classList.add('show');
 }
@@ -535,7 +542,7 @@ document.getElementById('btn-cancelar-editar').addEventListener('click',function
 document.getElementById('btn-confirmar-editar').addEventListener('click',function(){
   var id=document.getElementById('e-id').value;
   var expira=document.getElementById('e-expira').value;
-  sbPatch('licencas','id=eq.'+id,{observacao:document.getElementById('e-obs').value.trim(),email:document.getElementById('e-email').value.trim()||null,max_devices:parseInt(document.getElementById('e-maxdev').value)||1,expira_em:expira?expira+'T23:59:59Z':null})
+  sbPatch('licencas','id=eq.'+id,{observacao:document.getElementById('e-obs').value.trim(),email:document.getElementById('e-email').value.trim()||null,max_devices:parseInt(document.getElementById('e-maxdev').value)||1,max_devices_workcam:parseInt(document.getElementById('e-maxdev-workcam').value)||0,expira_em:expira?expira+'T23:59:59Z':null})
   .then(function(){toast('Atualizado!');document.getElementById('modal-editar').classList.remove('show');carregar();});
 });
 
