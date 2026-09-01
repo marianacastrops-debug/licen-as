@@ -339,7 +339,8 @@ function filtrar(){
     if(abaOrigemAtual==='full_ia'){
       if(origemReal!=='worklive_full_ia_bonus')return false;
     } else if(abaOrigemAtual==='cakto'){
-      if(origemReal!=='cakto')return false;
+      // Vendas automáticas podem vir da Cakto ou da Kiwify.
+      if(origemReal!=='cakto' && origemReal!=='kiwify')return false;
     } else {
       if(origemReal!=='manual')return false;
     }
