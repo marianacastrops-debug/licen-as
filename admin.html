@@ -335,12 +335,13 @@ function filtrar(){
   var status=document.getElementById('filtro-status').value;
   var agora=new Date();
   renderTabela(todasChaves.filter(function(c){
-    var origemReal=(c.origem||'manual');
+    var origemReal=String(c.origem||'manual').trim().toLowerCase();
     if(abaOrigemAtual==='full_ia'){
       if(origemReal!=='worklive_full_ia_bonus')return false;
     } else if(abaOrigemAtual==='cakto'){
-      // Vendas automáticas podem vir da Cakto ou da Kiwify.
-      if(origemReal!=='cakto' && origemReal!=='kiwify')return false;
+      // Aba Vendas Automáticas: mostra qualquer venda automática,
+      // incluindo Cakto, Kiwify e futuras plataformas.
+      if(origemReal==='manual' || origemReal==='worklive_full_ia_bonus')return false;
     } else {
       if(origemReal!=='manual')return false;
     }
