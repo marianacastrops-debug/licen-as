@@ -272,35 +272,61 @@ tbody td{padding:12px 16px;vertical-align:middle}
 <div id="toast"></div>
 
 <script>
-var SB_URL = 'https://yvzsgiltneiwuyxvbjsg.supabase.co';
-var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2enNnaWx0bmVpd3V5eHZianNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTgzNDY3MSwiZXhwIjoyMDk3NDEwNjcxfQ.Bo2qzahYV5K55ijBiOq8j0F1ekA9ZhEtQL5S5YktAQ8';
 var todasChaves = [];
 var expandidoId = null;
 
-function sbH(){ return {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'}; }
-function sbGet(t,p){var url=SB_URL+'/rest/v1/'+t+'?select=*';if(p)Object.keys(p).forEach(function(k){url+='&'+k+'='+encodeURIComponent(p[k]);});return fetch(url,{headers:sbH()}).then(function(r){return r.json();});}
-function sbPost(t,d){return fetch(SB_URL+'/rest/v1/'+t,{method:'POST',headers:sbH(),body:JSON.stringify(d)}).then(function(r){return r.json();});}
-function sbPatch(t,f,d){return fetch(SB_URL+'/rest/v1/'+t+'?'+f,{method:'PATCH',headers:sbH(),body:JSON.stringify(d)}).then(function(r){return r.json();});}
-function sbDelete(t,f){return fetch(SB_URL+'/rest/v1/'+t+'?'+f,{method:'DELETE',headers:sbH()}).then(function(r){return r.status;});}
+if (location.hostname.endsWith('github.io')) {
+  document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#060C18;color:#EEF0F6;font-family:Inter,system-ui,sans-serif;padding:24px;text-align:center"><div style="max-width:560px"><h1 style="font-size:24px;margin-bottom:12px">Painel admin desativado neste endereço</h1><p style="color:#8b96ad;line-height:1.5">Por segurança, o admin de licenças não roda mais pelo GitHub Pages. Use apenas o endereço protegido do backend.</p></div></div>';
+  throw new Error('Admin bloqueado no GitHub Pages.');
+}
+
+var ADMIN_TOKEN_CACHE = localStorage.getItem('wl_admin_token') || '';
+
+function pedirTokenAdmin(force){
+  if(!force && ADMIN_TOKEN_CACHE) return ADMIN_TOKEN_CACHE;
+  var token = prompt('Token do admin WorkLive:');
+  if(token){
+    ADMIN_TOKEN_CACHE = token.trim();
+    localStorage.setItem('wl_admin_token', ADMIN_TOKEN_CACHE);
+  }
+  return ADMIN_TOKEN_CACHE;
+}
+
+function api(path, opts){
+  opts = opts || {};
+  var token = pedirTokenAdmin(false);
+  var headers = Object.assign({'Content-Type':'application/json','X-Admin-Token':token}, opts.headers || {});
+  return fetch(path, Object.assign({}, opts, {headers:headers})).then(function(r){
+    return r.json().catch(function(){return {ok:r.ok};}).then(function(data){
+      if(r.status===401){
+        localStorage.removeItem('wl_admin_token');
+        ADMIN_TOKEN_CACHE='';
+        toast('Token admin inválido. Informe novamente.','err');
+        pedirTokenAdmin(true);
+      }
+      if(!r.ok || data.ok===false) throw new Error(data.msg || data.erro || 'Falha na operação.');
+      return data;
+    });
+  });
+}
+
+function apiPost(path, body){return api(path,{method:'POST',body:JSON.stringify(body||{})});}
+function apiDelete(path){return api(path,{method:'DELETE'});}
 
 document.getElementById('btn-atualizar').addEventListener('click', carregar);
 
 function carregar() {
   document.getElementById('tabela-body').innerHTML='<tr><td colspan="8" class="loading">Carregando...</td></tr>';
-  sbGet('licencas',{order:'criada_em.desc'}).then(function(chaves){
+  api('/admin/chaves').then(function(resp){
+    var chaves = resp.chaves || [];
     if(!Array.isArray(chaves)){toast('Erro ao carregar.','err');return;}
-    if(!chaves.length){todasChaves=[];atualizarStats();filtrar();return;}
-    var pendentes=chaves.length;
-    chaves.forEach(function(c){c.devices=[];c.slots_usados=0;c.slots_usados_workcam=0;});
     chaves.forEach(function(c){
-      sbGet('licenca_devices',{'licenca_id':'eq.'+c.id,'order':'ativado_em.asc'}).then(function(devs){
-        c.devices=Array.isArray(devs)?devs:[];
-        c.slots_usados=c.devices.filter(function(d){return (d.produto||'worklive')!=='workcam';}).length;
-        c.slots_usados_workcam=c.devices.filter(function(d){return d.produto==='workcam';}).length;
-        if(--pendentes===0){todasChaves=chaves;atualizarStats();filtrar();}
-      }).catch(function(){if(--pendentes===0){todasChaves=chaves;atualizarStats();filtrar();}});
+      c.devices=Array.isArray(c.devices)?c.devices:[];
+      c.slots_usados=c.devices.filter(function(d){return (d.produto||'worklive')!=='workcam';}).length;
+      c.slots_usados_workcam=c.devices.filter(function(d){return d.produto==='workcam';}).length;
     });
-  }).catch(function(){toast('Erro de conexao.','err');});
+    todasChaves=chaves;atualizarStats();filtrar();
+  }).catch(function(e){toast(e.message||'Erro de conexao.','err');});
 }
 
 function atualizarStats(){
@@ -470,9 +496,9 @@ function renderDevs(devices,cid,c){
   }).join('')+'</div>';
 }
 
-function revogar(id){if(!confirm('Revogar esta chave?'))return;sbPatch('licencas','id=eq.'+id,{ativa:false}).then(function(){toast('Revogada!');carregar();});}
-function reativar(id){sbPatch('licencas','id=eq.'+id,{ativa:true}).then(function(){toast('Reativada!');carregar();});}
-function resetar(id,ch){if(!confirm('Resetar todos os devices da chave '+ch+'?'))return;sbDelete('licenca_devices','licenca_id=eq.'+id).then(function(){toast('Devices resetados!');expandidoId=null;carregar();});}
+function revogar(id){if(!confirm('Revogar esta chave?'))return;apiPost('/admin/revogar/'+encodeURIComponent(id)).then(function(){toast('Revogada!');carregar();}).catch(function(e){toast(e.message,'err');});}
+function reativar(id){apiPost('/admin/reativar/'+encodeURIComponent(id)).then(function(){toast('Reativada!');carregar();}).catch(function(e){toast(e.message,'err');});}
+function resetar(id,ch){if(!confirm('Resetar todos os devices da chave '+ch+'?'))return;apiPost('/admin/resetar_devices/'+encodeURIComponent(id)).then(function(){toast('Devices resetados!');expandidoId=null;carregar();}).catch(function(e){toast(e.message,'err');});}
 
 function renovar(id,tipo){
   document.getElementById('r-id').value=id;
@@ -485,19 +511,18 @@ document.getElementById('btn-confirmar-renovar').addEventListener('click',functi
   var tipo=document.getElementById('r-tipo').value;
   var dias = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='anual' ? 365 : tipo==='mentoria' ? 360 : 0; // vitalicio = 0 (sem expiracao)
   var novaExpira = dias>0 ? new Date(Date.now() + dias*24*60*60*1000).toISOString() : null;
-  sbPatch('licencas','id=eq.'+id,{tipo:tipo,expira_em:novaExpira,ativa:true})
-    .then(function(){toast('Chave renovada como '+tipo+'!');document.getElementById('modal-renovar').classList.remove('show');carregar();});
+  apiPost('/admin/atualizar/'+encodeURIComponent(id),{tipo:tipo,expira_em:novaExpira,ativa:true})
+    .then(function(){toast('Chave renovada como '+tipo+'!');document.getElementById('modal-renovar').classList.remove('show');carregar();})
+    .catch(function(e){toast(e.message,'err');});
 });
-function removerDevice(did,cid){if(!confirm('Remover este dispositivo?'))return;sbDelete('licenca_devices','id=eq.'+did).then(function(){toast('Device removido.');carregar();});}
+function removerDevice(did,cid){if(!confirm('Remover este dispositivo?'))return;apiDelete('/admin/remover_device/'+encodeURIComponent(did)).then(function(){toast('Device removido.');carregar();}).catch(function(e){toast(e.message,'err');});}
 function excluir(id, chave) {
   if (!confirm('Excluir permanentemente a chave ' + chave + '?\nEsta ação não pode ser desfeita.')) return;
-  sbDelete('licenca_devices','licenca_id=eq.'+id).then(function(){
-    sbDelete('licencas','id=eq.'+id).then(function(){
-      toast('Chave excluída!');
-      expandidoId = null;
-      carregar();
-    }).catch(function(){ toast('Erro ao excluir.','err'); });
-  }).catch(function(){ toast('Erro ao excluir devices.','err'); });
+  apiDelete('/admin/chaves/'+encodeURIComponent(id)).then(function(){
+    toast('Chave excluída!');
+    expandidoId = null;
+    carregar();
+  }).catch(function(e){ toast(e.message||'Erro ao excluir.','err'); });
 }
 
 function copiar(ch){
@@ -589,13 +614,20 @@ document.getElementById('btn-confirmar-gerar').addEventListener('click',function
     var dias = tipo==='mensal' ? 30 : tipo==='trimestral' ? 90 : tipo==='semestral' ? 180 : tipo==='anual' ? 365 : tipo==='mentoria' ? 360 : 0;
     if (dias > 0) { var dd=new Date(); dd.setDate(dd.getDate()+dias); expira=dd.toISOString().slice(0,10); }
   }
-  var geradas=[],pendentes=qtd;
-  for(var i=0;i<qtd;i++){(function(){
-    var ch=gerarChave();
-    sbPost('licencas',{chave:ch,tipo:tipo,max_devices:maxDev,max_devices_workcam:maxDevWorkcam,ativa:true,expira_em:expira?expira+'T23:59:59Z':null,criada_em:new Date().toISOString(),observacao:obs})
-    .then(function(){geradas.push(ch);if(--pendentes===0){document.getElementById('modal-gerar').classList.remove('show');navigator.clipboard.writeText(geradas.join('\n')).catch(function(){});toast(geradas.length===1?'Chave: '+geradas[0]:geradas.length+' chaves geradas!');carregar();}})
-    .catch(function(){if(--pendentes===0)toast('Erro ao gerar.','err');});
-  })();}
+  apiPost('/admin/gerar',{
+    tipo:tipo,
+    max_devices:maxDev,
+    max_devices_workcam:maxDevWorkcam,
+    expira_em:expira?expira+'T23:59:59Z':null,
+    quantidade:qtd,
+    observacao:obs
+  }).then(function(data){
+    var geradas=data.chaves||[];
+    document.getElementById('modal-gerar').classList.remove('show');
+    navigator.clipboard.writeText(geradas.join('\n')).catch(function(){});
+    toast(geradas.length===1?'Chave: '+geradas[0]:geradas.length+' chaves geradas!');
+    carregar();
+  }).catch(function(e){toast(e.message||'Erro ao gerar.','err');});
 });
 
 function abrirEditar(id){
@@ -612,8 +644,14 @@ document.getElementById('btn-cancelar-editar').addEventListener('click',function
 document.getElementById('btn-confirmar-editar').addEventListener('click',function(){
   var id=document.getElementById('e-id').value;
   var expira=document.getElementById('e-expira').value;
-  sbPatch('licencas','id=eq.'+id,{observacao:document.getElementById('e-obs').value.trim(),email:document.getElementById('e-email').value.trim()||null,max_devices:parseInt(document.getElementById('e-maxdev').value)||1,max_devices_workcam:parseInt(document.getElementById('e-maxdev-workcam').value)||0,expira_em:expira?expira+'T23:59:59Z':null})
-  .then(function(){toast('Atualizado!');document.getElementById('modal-editar').classList.remove('show');carregar();});
+  apiPost('/admin/atualizar/'+encodeURIComponent(id),{
+    observacao:document.getElementById('e-obs').value.trim(),
+    email:document.getElementById('e-email').value.trim()||null,
+    max_devices:parseInt(document.getElementById('e-maxdev').value)||1,
+    max_devices_workcam:parseInt(document.getElementById('e-maxdev-workcam').value)||0,
+    expira_em:expira?expira+'T23:59:59Z':null
+  }).then(function(){toast('Atualizado!');document.getElementById('modal-editar').classList.remove('show');carregar();})
+    .catch(function(e){toast(e.message,'err');});
 });
 
 document.querySelectorAll('.modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('show');});});

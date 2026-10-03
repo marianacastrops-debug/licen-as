@@ -2,7 +2,7 @@
 InfinityLive - Backend de Licencas v1.2
 Flask + Supabase REST API (sem biblioteca supabase)
 """
-import os, json, random, string, requests
+import hmac, os, json, random, string, requests
 from datetime import datetime, timezone
 from functools import wraps
 from flask import Flask, request, jsonify
@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 SUPABASE_URL  = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY  = os.environ.get("SUPABASE_KEY", "")
-ADMIN_TOKEN   = os.environ.get("ADMIN_TOKEN", "cal61490")
+ADMIN_TOKEN   = os.environ.get("ADMIN_TOKEN", "")
 
 def sb_headers():
     return {
@@ -33,19 +33,19 @@ def sb_post(tabela, dados):
     url = SUPABASE_URL + "/rest/v1/" + tabela
     r = requests.post(url, headers=sb_headers(), json=dados, timeout=10)
     r.raise_for_status()
-    return r.json()
+    return r.json() if r.text.strip() else []
 
 def sb_patch(tabela, filtros, dados):
     url = SUPABASE_URL + "/rest/v1/" + tabela
     r = requests.patch(url, headers=sb_headers(), params=filtros, json=dados, timeout=10)
     r.raise_for_status()
-    return r.json()
+    return r.json() if r.text.strip() else []
 
 def sb_delete(tabela, filtros):
     url = SUPABASE_URL + "/rest/v1/" + tabela
     r = requests.delete(url, headers=sb_headers(), params=filtros, timeout=10)
     r.raise_for_status()
-    return r.json()
+    return r.json() if r.text.strip() else []
 
 def agora():
     return datetime.now(timezone.utc).isoformat()
@@ -58,17 +58,24 @@ def gerar_chave():
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        if not ADMIN_TOKEN:
+            return jsonify({"ok": False, "msg": "ADMIN_TOKEN nao configurado no servidor."}), 503
         token = request.headers.get("X-Admin-Token", "")
-        if token != ADMIN_TOKEN:
+        if not hmac.compare_digest(token, ADMIN_TOKEN):
             return jsonify({"ok": False, "msg": "Nao autorizado."}), 401
         return f(*args, **kwargs)
     return decorated
 
 @app.after_request
 def after(response):
-    response.headers["Access-Control-Allow-Origin"]  = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Token"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, DELETE"
+    if request.path.startswith("/admin"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+    else:
+        response.headers["Access-Control-Allow-Origin"]  = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     return response
 
 @app.route("/", methods=["OPTIONS"])
@@ -217,9 +224,11 @@ def admin_gerar():
     body        = request.get_json(silent=True) or {}
     tipo        = body.get("tipo", "mensal")
     max_devices = int(body.get("max_devices", 1))
+    max_devices_workcam = int(body.get("max_devices_workcam", 0))
     expira_em   = body.get("expira_em", None)
     quantidade  = min(int(body.get("quantidade", 1)), 50)
     observacao  = (body.get("observacao") or "")[:200]
+    email       = (body.get("email") or "").strip()[:240] or None
 
     geradas = []
     for _ in range(quantidade):
@@ -229,10 +238,12 @@ def admin_gerar():
                 "chave":       chave,
                 "tipo":        tipo,
                 "max_devices": max_devices,
+                "max_devices_workcam": max_devices_workcam,
                 "ativa":       True,
                 "expira_em":   expira_em,
                 "criada_em":   agora(),
                 "observacao":  observacao,
+                "email":       email,
             })
             geradas.append(chave)
         except Exception as e:
@@ -287,14 +298,29 @@ def admin_atualizar(chave_id):
     body   = request.get_json(silent=True) or {}
     update = {}
     if "max_devices" in body: update["max_devices"] = int(body["max_devices"])
+    if "max_devices_workcam" in body: update["max_devices_workcam"] = int(body["max_devices_workcam"])
     if "expira_em"   in body: update["expira_em"]   = body["expira_em"]
     if "observacao"  in body: update["observacao"]  = body["observacao"][:200]
+    if "email"       in body: update["email"]       = (body["email"] or "").strip()[:240] or None
+    if "tipo"        in body: update["tipo"]        = body["tipo"]
+    if "ativa"       in body: update["ativa"]       = bool(body["ativa"])
     if update:
         try:
             sb_patch("licencas", {"id": "eq." + chave_id}, update)
         except Exception as e:
             return jsonify({"ok": False, "msg": str(e)})
     return jsonify({"ok": True, "msg": "Chave atualizada."})
+
+
+@app.route("/admin/chaves/<chave_id>", methods=["DELETE"])
+@admin_required
+def admin_excluir_chave(chave_id):
+    try:
+        sb_delete("licenca_devices", {"licenca_id": "eq." + chave_id})
+        sb_delete("licencas", {"id": "eq." + chave_id})
+        return jsonify({"ok": True, "msg": "Chave excluida."})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
 
 
 # ── PAINEL ADMIN ──────────────────────────────────────────────────────────────
