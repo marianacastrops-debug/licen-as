@@ -1,11 +1,11 @@
 """
-InfinityLive - Backend de Licencas v1.2
+SmartLive - Admin de licenças da extensão
 Flask + Supabase REST API (sem biblioteca supabase)
 """
 import hmac, os, json, random, string, requests
 from datetime import datetime, timezone
 from functools import wraps
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 
 app = Flask(__name__)
 
@@ -85,7 +85,7 @@ def options(path=""):
 
 @app.route("/")
 def index():
-    return jsonify({"ok": True, "msg": "InfinityLive Licencas v1.2"})
+    return redirect("/admin", code=302)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -208,11 +208,22 @@ def validar():
 @admin_required
 def admin_listar_chaves():
     try:
-        chaves = sb_get("licencas", {"order": "criada_em.desc"})
-        for c in chaves:
-            devs = sb_get("licenca_devices", {"licenca_id": "eq." + c["id"], "order": "ativado_em.asc"})
-            c["devices"]      = devs
-            c["slots_usados"] = len(devs)
+        def listar_todos(tabela, ordem):
+            resultado = []
+            while True:
+                pagina = sb_get(tabela, {"order": ordem, "limit": 1000, "offset": len(resultado)})
+                resultado.extend(pagina)
+                if len(pagina) < 1000:
+                    return resultado
+        chaves = listar_todos("licencas", "criada_em.desc,id.asc")
+        por_licenca = {}
+        if chaves:
+            for device in listar_todos("licenca_devices", "ativado_em.asc,id.asc"):
+                por_licenca.setdefault(str(device.get("licenca_id")), []).append(device)
+        for chave in chaves:
+            devices = por_licenca.get(str(chave["id"]), [])
+            chave["devices"] = devices
+            chave["slots_usados"] = len(devices)
         return jsonify({"ok": True, "chaves": chaves})
     except Exception as e:
         return jsonify({"ok": False, "msg": "Erro: " + str(e)})
@@ -326,6 +337,7 @@ def admin_excluir_chave(chave_id):
 # ── PAINEL ADMIN ──────────────────────────────────────────────────────────────
 import pathlib
 
+@app.route("/admin.html")
 @app.route("/admin")
 @app.route("/admin/")
 def admin_painel():
